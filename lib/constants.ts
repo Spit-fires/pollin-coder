@@ -1,46 +1,34 @@
-export const MODELS = [
-  {
-    label: "OpenAI GPT-4.1",
-    value: "openai-large",
-  },
-  {
-    label: "OpenAI GPT-4.1-mini",
-    value: "openai",
-  },
-  {
-    label: "OpenAI GPT-4.1-nano",
-    value: "openai-fast",
-  },
-  
-  {
-    label: "Qwen 2.5 Coder 32B",
-    value: "qwen-coder",
-  },
-  {
-    label: "Llama 3.3 70B",
-    value: "llama",
-  },
-  {
-    label: "Llama 4 Scout 17B",
-    value: "llamascout",
-  },
-  {
-    label: "Mistral Small 3.1 24B",
-    value: "mistral",
-  },
-  {
-    label: "DeepSeek R1",
-    value: "deepseek-reasoning",
-  },
-  {
-    label: "OpenAI GPT-5 Nano",
-    value: "gpt-5-nano",
-  },
+// Model type definition
+export interface Model {
+  label: string;
+  value: string;
+}
+
+// Fallback models used when Pollinations API is unavailable
+// These are the most reliable core models
+export const FALLBACK_MODELS: Model[] = [
+  { label: "OpenAI GPT-4.1 (Large)", value: "openai-large" },
+  { label: "OpenAI GPT-4.1 (Standard)", value: "openai" },
+  { label: "OpenAI GPT-4.1 (Fast)", value: "openai-fast" },
+  { label: "Claude Sonnet 4.5", value: "claude" },
+  { label: "Mistral Small 3.1", value: "mistral" },
 ];
+
+// Default model when no user preference is stored
+export const DEFAULT_MODEL_FALLBACK = "openai";
+
+// Task-specific models for server-side operations
+// These can be adjusted based on model performance for specific tasks
+export const TASK_MODELS = {
+  titleGeneration: "openai-fast", // Fast model for quick title generation
+  exampleMatching: "openai-fast", // Fast model for example matching
+  screenshotAnalysis: "openai", // Standard model for screenshot description
+  softwareArchitecture: "qwen-coder", // Specialized model for high-quality code architecture
+} as const;
 
 export const SUGGESTED_PROMPTS = [
   {
-    title: "AI chat and image genration",
+    title: "AI chat and image generation",
     description:
       "Create a modern 3D interactive website that includes an AI chat interface and image generation capabilities. The site should have a dynamic 3D background, interactive elements, and seamless integration of AI features for both text conversations and image creation.",
   },

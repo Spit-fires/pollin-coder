@@ -5,6 +5,7 @@ import ArrowLeftIcon from "@/components/icons/arrow-left";
 import { splitByFirstCodeFence } from "@/lib/utils";
 import { Fragment } from "react";
 import Markdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
 import { StickToBottom } from "use-stick-to-bottom";
 
 export default function ChatLog({
@@ -59,17 +60,34 @@ export default function ChatLog({
   );
 }
 
+// Allowlist of domains for user-supplied image URLs
+const ALLOWED_IMAGE_DOMAINS = ['files.catbox.moe', 'litter.catbox.moe', 's3.amazonaws.com'];
+
+function isSafeImageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    return ALLOWED_IMAGE_DOMAINS.some(
+      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
 function UserMessage({ content }: { content: string }) {
   // Detect [Reference image: <url>] pattern
   const imageMatch = content.match(/\[Reference image: (https?:\/\/[^\]]+)\]/);
-  let imageUrl = imageMatch ? imageMatch[1] : null;
-  let messageText = imageMatch ? content.replace(imageMatch[0], '').trim() : content;
+  const rawImageUrl = imageMatch ? imageMatch[1] : null;
+  // Only render images from allowed domains to prevent XSS via javascript:/data: URIs
+  const imageUrl = rawImageUrl && isSafeImageUrl(rawImageUrl) ? rawImageUrl : null;
+  const messageText = imageMatch ? content.replace(imageMatch[0], '').trim() : content;
 
   return (
     <div className="relative inline-flex max-w-[80%] items-end gap-3 self-end">
       <div className="whitespace-pre-wrap rounded bg-gray-900 px-4 py-2 text-white shadow border border-purple-500/30">
         {imageUrl && (
-          <img src={imageUrl} alt="Reference" className="mb-2 max-w-xs rounded" />
+          <img src={imageUrl} alt="User-uploaded reference image" className="mb-2 max-w-xs rounded" />
         )}
         {messageText}
       </div>
@@ -97,7 +115,7 @@ function AssistantMessage({
       {parts.map((part, i) => (
         <div key={i}>
           {part.type === "text" ? (
-            <Markdown className="prose prose-invert">{part.content}</Markdown>
+            <Markdown className="prose prose-invert" rehypePlugins={[rehypeSanitize]}>{part.content}</Markdown>
           ) : part.type === "first-code-fence-generating" ? (
             <div className="my-4">
               <button

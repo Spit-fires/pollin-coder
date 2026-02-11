@@ -7,6 +7,7 @@
   src: url("/Aeonik/Aeonik-Regular.ttf");
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -14,6 +15,7 @@
   src: url("/Aeonik/Aeonik-Medium.ttf");
   font-weight: 500;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -21,6 +23,7 @@
   src: url("/Aeonik/Aeonik-Bold.ttf");
   font-weight: 700;
   font-style: normal;
+  font-display: swap;
 }
 
 @font-face {
@@ -28,6 +31,7 @@
   src: url("/Aeonik/AeonikMono-Regular.otf");
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
 }
 
 @layer base {
@@ -157,7 +161,7 @@
   }
 }
 
-@keyframes bounce {
+@keyframes pollin-bounce {
   0%, 100% {
     transform: translateY(0);
   }
@@ -188,7 +192,7 @@
 }
 
 .animate-bounce-slow {
-  animation: bounce 2s infinite;
+  animation: pollin-bounce 2s infinite;
 }
 
 .animate-skeleton-pulse {
@@ -215,7 +219,7 @@
   }
   
   .animate-bounce-slow {
-    animation: bounce 3s ease-in-out infinite;
+    animation: pollin-bounce 3s ease-in-out infinite;
   }
 }
 

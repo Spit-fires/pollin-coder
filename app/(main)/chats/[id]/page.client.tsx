@@ -23,6 +23,7 @@ class ChatCompletionStream {
     let accumulatedContent = "";
     let contentHandlers: ((delta: string, content: string) => void)[] = [];
     let finalContentHandlers: ((content: string) => void)[] = [];
+    let cancelled = false;
 
     const processBuffer = () => {
       const lines = buffer.split("\n");
@@ -38,7 +39,9 @@ class ChatCompletionStream {
             const delta = data?.choices?.[0]?.delta?.content || "";
             accumulatedContent += delta;
             
-            contentHandlers.forEach(handler => handler(delta, accumulatedContent));
+            if (!cancelled) {
+              contentHandlers.forEach(handler => handler(delta, accumulatedContent));
+            }
           } catch (e) {
             console.error("Error parsing SSE data:", e);
           }
@@ -50,8 +53,10 @@ class ChatCompletionStream {
       try {
         while (true) {
           const { done, value } = await reader.read();
-          if (done) {
-            finalContentHandlers.forEach(handler => handler(accumulatedContent));
+          if (done || cancelled) {
+            if (!cancelled) {
+              finalContentHandlers.forEach(handler => handler(accumulatedContent));
+            }
             break;
           }
           
@@ -59,7 +64,9 @@ class ChatCompletionStream {
           processBuffer();
         }
       } catch (error) {
-        console.error("Error reading stream:", error);
+        if (!cancelled) {
+          console.error("Error reading stream:", error);
+        }
       }
     };
 
@@ -73,6 +80,10 @@ class ChatCompletionStream {
           finalContentHandlers.push(handler as (content: string) => void);
         }
         return this;
+      },
+      cancel() {
+        cancelled = true;
+        reader.cancel().catch(() => {});
       }
     };
   }
@@ -95,6 +106,8 @@ export default function PageClient({ chat }: { chat: Chat }) {
   );
 
   useEffect(() => {
+    let streamInstance: ReturnType<typeof ChatCompletionStream.fromReadableStream> | null = null;
+
     async function f() {
       if (!streamPromise || isHandlingStreamRef.current) return;
 
@@ -105,7 +118,7 @@ export default function PageClient({ chat }: { chat: Chat }) {
       let didPushToCode = false;
       let didPushToPreview = false;
 
-      ChatCompletionStream.fromReadableStream(stream)
+      streamInstance = ChatCompletionStream.fromReadableStream(stream)
         .on("content", (delta, content) => {
           setStreamText((text) => text + delta);
 
@@ -151,6 +164,13 @@ export default function PageClient({ chat }: { chat: Chat }) {
     }
 
     f();
+
+    return () => {
+      // Cancel stream reader on unmount to prevent memory leaks
+      if (streamInstance) {
+        streamInstance.cancel();
+      }
+    };
   }, [chat.id, router, streamPromise, context]);
 
   return (

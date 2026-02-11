@@ -9,6 +9,7 @@ export default function CloseIcon(props: ComponentProps<"svg">) {
       strokeWidth={1.5}
       stroke="currentColor"
       className="size-6"
+      aria-hidden="true"
       {...props}
     >
       <path

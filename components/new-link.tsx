@@ -25,7 +25,7 @@ export default function NewLink({
 
     // Then, add new params from newQuery
     Object.entries(newQuery).forEach(([key, value]) => {
-      if (value) {
+      if (value !== null && value !== undefined) {
         params.set(key, value.toString());
       } else if (value === null) {
         params.delete(key);

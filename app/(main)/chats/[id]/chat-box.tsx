@@ -2,13 +2,12 @@
 
 import ArrowRightIcon from "@/components/icons/arrow-right";
 import Spinner from "@/components/spinner";
-import assert from "assert";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createMessage } from "../../actions";
 import { type Chat } from "./page";
 import * as Select from "@radix-ui/react-select";
-import { MODELS } from "@/lib/constants";
+import { useModels, setDefaultModel } from "@/hooks/use-models";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import UploadIcon from "@/components/icons/upload-icon";
 import { XCircleIcon } from "@heroicons/react/20/solid";
@@ -22,6 +21,7 @@ export default function ChatBox({
   onNewStreamPromise: (v: Promise<ReadableStream>) => void;
   isStreaming: boolean;
 }) {
+  const { models } = useModels();
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const disabled = isPending || isStreaming;
@@ -34,7 +34,7 @@ export default function ChatBox({
     undefined,
   );
   const [screenshotLoading, setScreenshotLoading] = useState(false);
-  const selectedModel = MODELS.find((m) => m.value === model);
+  const selectedModel = models.find((m) => m.value === model);
   
   const textareaResizePrompt = prompt
     .split("\n")
@@ -52,9 +52,13 @@ export default function ChatBox({
     }
   }, [disabled]);
 
-  const handleScreenshotUpload = async (event: any) => {
+  const handleScreenshotUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     setScreenshotLoading(true);
-    let file = event.target.files[0];
+    const file = event.target.files?.[0];
+    if (!file) {
+      setScreenshotLoading(false);
+      return;
+    }
     
     // Create form data
     const formData = new FormData();
@@ -127,7 +131,10 @@ export default function ChatBox({
           <Select.Root
             name="model"
             value={model}
-            onValueChange={setModel}
+            onValueChange={(value) => {
+              setModel(value);
+              setDefaultModel(value);
+            }}
           >
             <Select.Trigger className="inline-flex items-center gap-1 rounded-md p-1 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-500 transition-colors">
               <Select.Value aria-label={model}>
@@ -140,7 +147,7 @@ export default function ChatBox({
             <Select.Portal>
               <Select.Content className="overflow-hidden rounded-md bg-black/80 shadow ring-1 ring-purple-500/20 z-[9999]">
                 <Select.Viewport className="space-y-1 p-2">
-                  {MODELS.map((m) => (
+                  {models.map((m) => (
                     <Select.Item
                       key={m.value}
                       value={m.value}
@@ -231,6 +238,7 @@ export default function ChatBox({
               <textarea
                 ref={textareaRef}
                 placeholder="Follow up"
+                aria-label="Follow up message"
                 autoFocus={!disabled}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}

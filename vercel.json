@@ -1,5 +1,4 @@
 {
-  "buildCommand": "prisma generate && next build",
   "framework": "nextjs",
   "outputDirectory": ".next",
   "regions": ["iad1"],
@@ -15,19 +14,40 @@
   },
   "headers": [
     {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.sandpack.codesandbox.io https://plausible.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.catbox.moe https://*.amazonaws.com https://gen.pollinations.ai; connect-src 'self' https://gen.pollinations.ai https://plausible.io https://*.sandpack.codesandbox.io wss://*.sandpack.codesandbox.io; frame-src https://*.sandpack.codesandbox.io https://*.csb.app; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+        }
+      ]
+    },
+    {
       "source": "/api/project-count",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        },
-        {
-          "key": "Pragma",
-          "value": "no-cache"
-        },
-        {
-          "key": "Expires",
-          "value": "0"
+          "value": "public, max-age=60"
         }
       ]
     }

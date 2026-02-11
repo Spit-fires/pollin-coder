@@ -1,1 +1,9 @@
+User-agent: *
+Allow: /
 Allow: /api/og/*
+Disallow: /api/
+Disallow: /chats/
+Disallow: /callback
+Disallow: /login
+
+Sitemap: https://polli-coder.megavault.in/sitemap.xml

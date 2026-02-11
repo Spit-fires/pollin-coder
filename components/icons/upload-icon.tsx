@@ -7,6 +7,7 @@ export default function UploadIcon(props: ComponentProps<"svg">) {
       width={10}
       viewBox="0 0 8.4666664 8.4666664"
       xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
       {...props}
     >
       <path

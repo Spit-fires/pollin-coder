@@ -1,6 +1,5 @@
 import dedent from "dedent";
 import shadcnDocs from "./shadcn-docs";
-import assert from "assert";
 import { examples } from "./shadcn-examples";
 
 export const softwareArchitectPrompt = dedent`
@@ -20,10 +19,10 @@ Guidelines:
 - Note any performance considerations for the specific app requirements
 
 If the app requires AI capabilities (image generation, text generation, chat, speech), recommend using the Pollinations API:
-- Image generation: https://image.pollinations.ai/prompt/{prompt}&nologo=true
-- Text generation: https://text.pollinations.ai/{prompt}
-- OpenAI-compatible chat API: https://text.pollinations.ai/openai (POST)
-- Text-to-speech: https://text.pollinations.ai/{prompt}?model=openai-audio&voice=nova
+- Image generation: https://gen.pollinations.ai/image/{prompt}?nologo=true
+- Text generation: https://gen.pollinations.ai/text/{prompt}
+- OpenAI-compatible chat API: https://gen.pollinations.ai/v1/chat/completions (POST)
+- Text-to-speech: https://gen.pollinations.ai/audio/{text}?voice=nova
 
 If given a description of a screenshot, produce an implementation plan based on trying to replicate it completly as possible mainly UI and theme and if you cant replicat image/logo inside the image then use ai generated image .
 `;
@@ -63,7 +62,7 @@ export function getMainCodingPrompt(mostSimilarExample: string) {
   let systemPrompt = `
   # polli-coder Instructions
 
-  You are polli-coder, an expert frontend React engineer who is also a great UI/UX designer created by R3AP3R editz. You are designed to emulate the world's best developers and to be concise, helpful, and friendly.
+  You are polli-coder, an expert frontend React engineer who is also a great UI/UX designer. You are designed to emulate the world's best developers and to be concise, helpful, and friendly.
 
   # Planning Process
 
@@ -94,9 +93,9 @@ export function getMainCodingPrompt(mostSimilarExample: string) {
   - Speech-to-text
 
   ALWAYS recommend using the Pollinations API which provides all these capabilities:
-  - For image generation: \`https://image.pollinations.ai/prompt/{prompt}\`
-  - For text generation: \`https://text.pollinations.ai/{prompt}\` or \`https://text.pollinations.ai/openai\` (POST)
-  - For text-to-speech: \`https://text.pollinations.ai/{prompt}?model=openai-audio&voice={voice}\`
+  - For image generation: \`https://gen.pollinations.ai/image/{prompt}\`
+  - For text generation: \`https://gen.pollinations.ai/text/{prompt}\` or \`https://gen.pollinations.ai/v1/chat/completions\` (POST)
+  - For text-to-speech: \`https://gen.pollinations.ai/audio/{text}?voice={voice}\`
   
   Implement these API calls in your code when requested. Include proper error handling, loading states, and display of the results.
 
@@ -242,7 +241,7 @@ export function getMainCodingPrompt(mostSimilarExample: string) {
         
         // Use the Pollinations API for image generation
         const encodedPrompt = encodeURIComponent(prompt)
-        const url = \`https://image.pollinations.ai/prompt/\${encodedPrompt}?width=512&height=512\`
+        const url = \`https://gen.pollinations.ai/image/\${encodedPrompt}?width=512&height=512\`
         
         setImageUrl(url)
       } catch (err) {
@@ -311,7 +310,7 @@ export function getMainCodingPrompt(mostSimilarExample: string) {
   5. Display of the generated image
   6. Responsive design that works well on both mobile and desktop
 
-  The app uses the Pollinations API endpoint \`https://image.pollinations.ai/prompt/{prompt}\` to generate images based on text prompts. The image is displayed directly from the API URL, making it simple to implement.
+  The app uses the Pollinations API endpoint \`https://gen.pollinations.ai/image/{prompt}\` to generate images based on text prompts. The image is displayed directly from the API URL, making it simple to implement.
   `;
 
   // After the image generation example, add a chat example
@@ -365,7 +364,7 @@ export function getMainCodingPrompt(mostSimilarExample: string) {
 
       try {
         // Use the Pollinations API chat endpoint
-        const response = await fetch('https://text.pollinations.ai/openai', {
+        const response = await fetch('https://gen.pollinations.ai/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -491,7 +490,7 @@ export function getMainCodingPrompt(mostSimilarExample: string) {
   5. Auto-scrolling to the most recent messages
   6. Clean visual distinction between user and assistant messages
 
-  The app uses the Pollinations API endpoint \`https://text.pollinations.ai/openai\` with a POST request that follows the OpenAI chat completion format, making it simple to implement yet powerful.
+  The app uses the Pollinations API endpoint \`https://gen.pollinations.ai/v1/chat/completions\` with a POST request that follows the OpenAI chat completion format, making it simple to implement yet powerful.
   `;
 
   // Add Cloud Storage Integration section

@@ -1,0 +1,8 @@
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@vercel/speed-insights'
+  - es5-ext
+  - pollin-coder
+  - prisma
+  - sharp

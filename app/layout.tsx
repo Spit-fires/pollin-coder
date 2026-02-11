@@ -4,7 +4,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
-let title = "Pollin Coder – AI Code Generator by R3AP3R editz";
+let title = "Pollin Coder – AI Code Generator";
 let description = "Generate your next app with Pollin Coder";
 let url = "https://polli-coder.megavault.in/";
 let ogimage = "https://polli-coder.megavault.in/og-image.png";
@@ -44,10 +44,11 @@ export default function RootLayout({
       <head>
         <PlausibleProvider domain="polli-coder.megavault.in" />
       </head>
-
-      {children}
-      <Analytics />
-      <SpeedInsights />
+      <body className="antialiased h-full">
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

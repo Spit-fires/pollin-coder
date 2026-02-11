@@ -1,13 +1,51 @@
 "use server";
 
 import { getPrisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 import {
   getMainCodingPrompt,
   screenshotToCodePrompt,
   softwareArchitectPrompt,
 } from "@/lib/prompts";
-import { callPollinationsAPISync } from "@/lib/pollinations";
-import { notFound } from "next/navigation";
+import { callPollinationsAPISync, getApiKeyFromCookies } from "@/lib/pollinations";
+import { TASK_MODELS } from "@/lib/constants";
+import { notFound, redirect } from "next/navigation";
+import { z } from "zod";
+
+// Allowlist of domains for screenshot URLs to prevent SSRF
+const ALLOWED_SCREENSHOT_DOMAINS = [
+  'files.catbox.moe',
+  'litter.catbox.moe',
+  's3.amazonaws.com',
+];
+
+function isAllowedScreenshotUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    return ALLOWED_SCREENSHOT_DOMAINS.some(
+      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+const createChatSchema = z.object({
+  prompt: z.string().min(1).max(10000),
+  model: z.string().min(1).max(100),
+  quality: z.enum(["high", "low"]),
+  screenshotUrl: z.string().url().refine(
+    (url) => isAllowedScreenshotUrl(url),
+    { message: "Screenshot URL must be from an allowed domain (catbox.moe or amazonaws.com)" }
+  ).optional(),
+});
+
+const createMessageSchema = z.object({
+  chatId: z.string().min(1),
+  text: z.string().min(1).max(50000),
+  role: z.enum(["assistant", "user"]),
+});
 
 export async function createChat(
   prompt: string,
@@ -15,6 +53,25 @@ export async function createChat(
   quality: "high" | "low",
   screenshotUrl: string | undefined,
 ) {
+  // Validate input
+  const validation = createChatSchema.safeParse({ prompt, model, quality, screenshotUrl });
+  if (!validation.success) {
+    throw new Error(`Invalid input: ${validation.error.message}`);
+  }
+
+  // Get authenticated user
+  const user = await requireAuth();
+  
+  // Get API key from cookies
+  const apiKey = await getApiKeyFromCookies();
+  
+  if (!apiKey) {
+    redirect("/login");
+  }
+
+  // Narrow apiKey to string after the guard above
+  const validApiKey: string = apiKey;
+
   const prisma = getPrisma();
   const chat = await prisma.chat.create({
     data: {
@@ -23,12 +80,13 @@ export async function createChat(
       prompt,
       title: "",
       shadcn: true,
+      userId: user.id, // Associate with authenticated user
     },
   });
 
   async function fetchTitle() {
-    const response = await callPollinationsAPISync({
-      model: "openai-fast",
+    const response = await callPollinationsAPISync(validApiKey, {
+      model: TASK_MODELS.titleGeneration,
       messages: [
         {
           role: "system",
@@ -49,8 +107,8 @@ export async function createChat(
   }
 
   async function fetchTopExample() {
-    const response = await callPollinationsAPISync({
-      model: "openai-fast",
+    const response = await callPollinationsAPISync(validApiKey, {
+      model: TASK_MODELS.exampleMatching,
       messages: [
         {
           role: "system",
@@ -87,8 +145,8 @@ export async function createChat(
 
   let fullScreenshotDescription;
   if (screenshotUrl) {
-    const response = await callPollinationsAPISync({
-      model: "openai",
+    const response = await callPollinationsAPISync(apiKey, {
+      model: TASK_MODELS.screenshotAnalysis,
       temperature: 0.2,
       max_tokens: 1000,
       messages: [
@@ -114,8 +172,8 @@ export async function createChat(
 
   let userMessage: string;
   if (quality === "high") {
-    const response = await callPollinationsAPISync({
-      model: "qwen-coder",
+    const response = await callPollinationsAPISync(apiKey, {
+      model: TASK_MODELS.softwareArchitecture,
       messages: [
         {
           role: "system",
@@ -184,6 +242,15 @@ export async function createMessage(
   text: string,
   role: "assistant" | "user",
 ) {
+  // Validate input
+  const validation = createMessageSchema.safeParse({ chatId, text, role });
+  if (!validation.success) {
+    throw new Error(`Invalid input: ${validation.error.message}`);
+  }
+
+  // Get authenticated user
+  const user = await requireAuth();
+  
   const prisma = getPrisma();
   const chat = await prisma.chat.findUnique({
     where: { id: chatId },
@@ -191,7 +258,14 @@ export async function createMessage(
   });
   if (!chat) notFound();
 
-  const maxPosition = Math.max(...chat.messages.map((m) => m.position));
+  // Check ownership
+  if (chat.userId !== user.id) {
+    throw new Error("Access denied");
+  }
+
+  const maxPosition = chat.messages.length > 0
+    ? Math.max(...chat.messages.map((m) => m.position))
+    : -1;
 
   const newMessage = await prisma.message.create({
     data: {

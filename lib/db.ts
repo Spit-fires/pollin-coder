@@ -1,29 +1,15 @@
-import { PrismaClient } from '@prisma/client';
+import { getPrisma } from './prisma';
 
-// This prevents multiple instances of Prisma Client in development
-declare global {
-  var cachedPrisma: PrismaClient;
-}
+// Use the singleton pattern - don't instantiate at module load time
+export { getPrisma };
 
-let prisma: PrismaClient;
-
-// Check if we're in development or test environment
-if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient();
-} else {
-  // Use cached instance in development to prevent too many connections
-  if (!global.cachedPrisma) {
-    global.cachedPrisma = new PrismaClient({
-      // Enable mock mode if we're running tests or have connection issues
-      log: ['query', 'info', 'warn', 'error'],
-    });
-  }
-  prisma = global.cachedPrisma;
-}
-
-export const db = prisma;
+// Reference to the global singleton for cleanup
+const globalForPrisma = globalThis as unknown as { prisma: any | undefined };
 
 // Gracefully shutdown the database connection
-export function disconnectDb() {
-  if (prisma) return prisma.$disconnect();
+export async function disconnectDb() {
+  const prisma = getPrisma();
+  await prisma.$disconnect();
+  // Clear the singleton so it can be recreated if needed
+  globalForPrisma.prisma = undefined;
 } 

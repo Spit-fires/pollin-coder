@@ -2,8 +2,7 @@
 
 import * as shadcnComponents from "@/lib/shadcn";
 import dedent from "dedent";
-import { CheckIcon, CopyIcon } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
 // Simple code viewer component as fallback

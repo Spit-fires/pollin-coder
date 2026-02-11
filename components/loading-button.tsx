@@ -1,3 +1,5 @@
+"use client";
+
 import Spinner from "@/components/spinner";
 import { ComponentProps } from "react";
 import { useFormStatus } from "react-dom";

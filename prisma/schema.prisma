@@ -4,40 +4,62 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  tier      String?
+  chats     Chat[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
 model GeneratedApp {
-  id        String   @id @default(nanoid(5))
+  id        String   @id @default(cuid())
   model     String
   prompt    String
   code      String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@index([id])
+  @@index([model])
+  @@index([createdAt])
 }
 
 model Chat {
-  id                 String    @id @default(nanoid(16))
+  id                 String    @id @default(cuid())
   model              String
   quality            String
   prompt             String
   title              String
   pollinCoderVersion String    @default("v2")
   shadcn             Boolean
+  userId             String?
+  user               User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages           Message[]
   createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Message {
-  id        String   @id @default(nanoid(16))
+  id        String   @id @default(cuid())
   role      String
   content   String
   chatId    String
   chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   position  Int
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([chatId])
+  @@index([chatId, position])
 }

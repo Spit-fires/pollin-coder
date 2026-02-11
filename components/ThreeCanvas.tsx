@@ -46,7 +46,7 @@ function ParticleField({ count = 2000 }) {
 
 export default function ThreeCanvas() {
   return (
-    <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
+    <Canvas camera={{ position: [0, 0, 5], fov: 60 }} aria-hidden="true" role="presentation">
       <ambientLight intensity={0.2} />
       <ParticleField />
       <mesh scale={[80, 80, 1]} position={[0, 0, -5]}>

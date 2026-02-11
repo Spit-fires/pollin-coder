@@ -1,17 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-
-// Create a static version for server rendering
-const StaticBackground = () => (
-  <div className="fixed inset-0 z-0 bg-black"></div>
-);
+import React, { useEffect } from 'react';
 
 export default function ThreeBackground() {
-  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true);
     
     // Create particles dynamically on the client side
     const container = document.createElement('div');

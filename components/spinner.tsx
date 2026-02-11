@@ -15,7 +15,7 @@ export default function Spinner({
 
   const spinner = (
     <>
-      <span className={`relative inline-flex ${className}`}>
+      <span className={`relative inline-flex ${className}`} role="status" aria-label="Loading">
         {Array.from(Array(8).keys()).map((i) => (
           <span
             key={i}
@@ -26,6 +26,7 @@ export default function Spinner({
             }}
           />
         ))}
+        <span className="sr-only">Loading...</span>
       </span>
     </>
   );

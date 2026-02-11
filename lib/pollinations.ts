@@ -1,56 +1,53 @@
 /**
- * Pollinations AI API utilities with token authentication
+ * Pollinations AI API utilities with BYOP (Bring Your Own Pollen) authentication
  */
 
-const POLLINATIONS_API_URL = "https://text.pollinations.ai/openai";
+import { cookies } from "next/headers";
+
+const POLLINATIONS_API_URL = "https://gen.pollinations.ai/v1/chat/completions";
 
 /**
- * Get the Pollinations AI token from environment variables
+ * Get the Pollinations AI API key from cookies (server-side)
  */
-function getPollinationsToken(): string | undefined {
-  // Use globalThis to access environment variables in Next.js
-  return (globalThis as any).process?.env?.POLLINATIONS_AI_TOKEN;
+export async function getApiKeyFromCookies(): Promise<string | undefined> {
+  const cookieStore = await cookies();
+  return cookieStore.get("pollinations_api_key")?.value;
 }
 
 /**
- * Create headers for Pollinations AI API requests with optional token authentication
+ * Create headers for Pollinations AI API requests with API key authentication
  */
-function createPollinationsHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
+function createPollinationsHeaders(apiKey: string): Record<string, string> {
+  return {
     "Content-Type": "application/json",
+    "Authorization": `Bearer ${apiKey}`,
   };
-
-  const token = getPollinationsToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  return headers;
 }
 
 /**
  * Make a request to Pollinations AI API with authentication
  */
 export async function callPollinationsAPI(
+  apiKey: string,
   body: any,
   options: {
     stream?: boolean;
     timeout?: number;
   } = {}
 ): Promise<Response> {
-  const { stream = false, timeout = 30000 } = options;
+  const { timeout = 30000 } = options;
 
-  const url = stream 
-    ? `${POLLINATIONS_API_URL}?token=${getPollinationsToken() || ''}`
-    : POLLINATIONS_API_URL;
+  if (!apiKey) {
+    throw new Error("API key is required for Pollinations API calls");
+  }
 
-  const headers = createPollinationsHeaders();
+  const headers = createPollinationsHeaders(apiKey);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(POLLINATIONS_API_URL, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
@@ -61,6 +58,18 @@ export async function callPollinationsAPI(
 
     if (!response.ok) {
       const errorText = await response.text();
+      
+      // Handle specific error codes
+      if (response.status === 401) {
+        throw new Error("Authentication failed. Please reconnect your Pollinations account.");
+      }
+      if (response.status === 402) {
+        throw new Error("Insufficient pollen balance. Please add more pollen to your account.");
+      }
+      if (response.status === 403) {
+        throw new Error("Access denied. Check your API key permissions.");
+      }
+      
       throw new Error(`Pollinations API error: ${response.status} - ${errorText}`);
     }
 
@@ -77,13 +86,19 @@ export async function callPollinationsAPI(
 /**
  * Make a streaming request to Pollinations AI API
  */
-export async function callPollinationsAPIStream(body: any): Promise<Response> {
-  return callPollinationsAPI(body, { stream: true });
+export async function callPollinationsAPIStream(
+  apiKey: string,
+  body: any
+): Promise<Response> {
+  return callPollinationsAPI(apiKey, body, { stream: true });
 }
 
 /**
  * Make a non-streaming request to Pollinations AI API
  */
-export async function callPollinationsAPISync(body: any): Promise<Response> {
-  return callPollinationsAPI(body, { stream: false });
+export async function callPollinationsAPISync(
+  apiKey: string,
+  body: any
+): Promise<Response> {
+  return callPollinationsAPI(apiKey, body, { stream: false });
 }

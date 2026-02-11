@@ -1,25 +1,34 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export default function MouseFollower() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isClient, setIsClient] = useState(false);
+  const rafRef = useRef<number | null>(null);
+  const latestPos = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     setIsClient(true);
     
-    // Function to update position
+    // Throttle mousemove updates using requestAnimationFrame
     const updatePosition = (e: MouseEvent) => {
-      setPosition({ x: e.clientX, y: e.clientY });
+      latestPos.current = { x: e.clientX, y: e.clientY };
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(() => {
+          setPosition(latestPos.current);
+          rafRef.current = null;
+        });
+      }
     };
 
-    // Add event listener
     window.addEventListener('mousemove', updatePosition);
 
-    // Clean up
     return () => {
       window.removeEventListener('mousemove', updatePosition);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
     };
   }, []);
 
@@ -36,6 +45,7 @@ export default function MouseFollower() {
           transform: `translate(${position.x - 200}px, ${position.y - 200}px)`,
           transition: 'transform 0.15s ease-out',
         }}
+        aria-hidden="true"
       />
       
       {/* Secondary smaller follower */}
@@ -47,6 +57,7 @@ export default function MouseFollower() {
           transform: `translate(${position.x - 50}px, ${position.y - 50}px)`,
           transition: 'transform 0.05s linear',
         }}
+        aria-hidden="true"
       />
       
       {/* Little bright dot at cursor */}
@@ -58,6 +69,7 @@ export default function MouseFollower() {
           transform: `translate(${position.x - 4}px, ${position.y - 4}px)`,
           boxShadow: '0 0 10px rgba(255, 255, 255, 0.8)',
         }}
+        aria-hidden="true"
       />
     </>
   );

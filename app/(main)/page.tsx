@@ -3,15 +3,11 @@
 
 import Fieldset from "@/components/fieldset";
 import ArrowRightIcon from "@/components/icons/arrow-right";
-import LightningBoltIcon from "@/components/icons/lightning-bolt";
 import LoadingButton from "@/components/loading-button";
 import Spinner from "@/components/spinner";
-import ThreeBackground from "@/components/ThreeBackground";
 import ThreeBackgroundScene from "@/components/ThreeBackgroundScene";
 import * as Select from "@radix-ui/react-select";
-import assert from "assert";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useState, useRef, useTransition, useEffect } from "react";
@@ -20,46 +16,56 @@ import { Context } from "./providers";
 import Header from "@/components/header";
 import UploadIcon from "@/components/icons/upload-icon";
 import { XCircleIcon } from "@heroicons/react/20/solid";
-import { MODELS, SUGGESTED_PROMPTS } from "@/lib/constants";
-import { getPrisma } from "@/lib/prisma";
+import { SUGGESTED_PROMPTS } from "@/lib/constants";
 import { useAnalytics } from "@/hooks/use-analytics";
-
-async function getProjectCount() {
-  const prisma = getPrisma();
-  return await prisma.chat.count();
-}
+import { useModels, getDefaultModel, setDefaultModel } from "@/hooks/use-models";
 
 export default function Home() {
   const { setStreamPromise } = use(Context);
   const router = useRouter();
   const analytics = useAnalytics();
+  const { models } = useModels();
   const [projectCount, setProjectCount] = useState<number>(0);
   const [isCountLoading, setIsCountLoading] = useState(true);
 
   const [prompt, setPrompt] = useState("");
-  const [model, setModel] = useState(MODELS[0].value);
-  const [quality, setQuality] = useState("high");
+  const [model, setModel] = useState(() => getDefaultModel());
+  const [quality] = useState("high");
   const [screenshotUrl, setScreenshotUrl] = useState<string | undefined>(
     undefined,
   );
   const [screenshotLoading, setScreenshotLoading] = useState(false);
-  const selectedModel = MODELS.find((m) => m.value === model);
+  const [uploadsEnabled, setUploadsEnabled] = useState(false);
+  const selectedModel = models.find((m) => m.value === model);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [animationLoaded, setAnimationLoaded] = useState(false);
 
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
     // Trigger animations after component mounts
     setAnimationLoaded(true);
+
+    // Check if uploads are enabled
+    fetch('/api/features', { signal })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!signal.aborted) setUploadsEnabled(data.uploadsEnabled);
+      })
+      .catch((err) => {
+        if (!signal.aborted) console.error('Failed to fetch feature flags:', err);
+      });
 
     // Fetch project count when component mounts
     const fetchProjectCount = async () => {
       setIsCountLoading(true);
       try {
-        // Add timestamp to prevent caching
         const timestamp = Date.now();
         const response = await fetch(`/api/project-count?t=${timestamp}`, {
+          signal,
           method: 'GET',
           headers: {
             'Cache-Control': 'no-cache',
@@ -72,8 +78,9 @@ export default function Home() {
         }
         
         const data = await response.json();
-        setProjectCount(data.count);
+        if (!signal.aborted) setProjectCount(data.count);
       } catch (err) {
+        if (signal.aborted) return;
         console.error('Failed to fetch project count:', err);
         // Retry once after a short delay
         setTimeout(async () => {
@@ -89,29 +96,35 @@ export default function Home() {
             
             if (response.ok) {
               const data = await response.json();
-              setProjectCount(data.count);
+              if (!signal.aborted) setProjectCount(data.count);
             }
           } catch (retryErr) {
-            console.error('Retry failed to fetch project count:', retryErr);
+            if (!signal.aborted) console.error('Retry failed to fetch project count:', retryErr);
           } finally {
-            setIsCountLoading(false);
+            if (!signal.aborted) setIsCountLoading(false);
           }
         }, 1000);
         return;
       } finally {
-        setIsCountLoading(false);
+        if (!signal.aborted) setIsCountLoading(false);
       }
     };
 
     fetchProjectCount();
+
+    return () => abortController.abort();
   }, []);
 
-  const handleScreenshotUpload = async (event: any) => {
+  const handleScreenshotUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (prompt.length === 0) setPrompt("Build this");
     // Keep high quality by default even for screenshots
     // setQuality("low");
     setScreenshotLoading(true);
-    let file = event.target.files[0];
+    const file = event.target.files?.[0];
+    if (!file) {
+      setScreenshotLoading(false);
+      return;
+    }
     
     // Track screenshot upload attempt
     analytics.trackScreenshotUploaded();
@@ -136,7 +149,8 @@ export default function Home() {
     } catch (error) {
       console.error('Upload error:', error);
       analytics.trackError('screenshot_upload_failed', error instanceof Error ? error.message : 'Upload failed');
-      alert('Failed to upload image. Please try again.');
+      // TODO: Replace with toast notification when toast context is available in this component
+      console.warn('Failed to upload image. Please try again.');
     } finally {
       setScreenshotLoading(false);
     }
@@ -164,10 +178,9 @@ export default function Home() {
             }`}
             style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
           >
-            <span className="text-center">
-              Created by <span className="font-semibold text-purple-400">pollinations ai</span> and
-              <span className="font-semibold text-purple-400"> R3AP3R editz </span>
-            </span>
+            <Link href="/developers" className="text-center hover:text-purple-400 transition-colors">
+              <span>Powered by <span className="font-semibold text-purple-400">Pollinations AI</span></span>
+            </Link>
           </div>
 
           <div
@@ -237,9 +250,15 @@ export default function Home() {
               startTransition(async () => {
                 const { prompt, model, quality } = Object.fromEntries(formData);
 
-                assert.ok(typeof prompt === "string");
-                assert.ok(typeof model === "string");
-                assert.ok(quality === "high" || quality === "low");
+                if (typeof prompt !== "string" || !prompt) {
+                  throw new Error("Prompt is required");
+                }
+                if (typeof model !== "string" || !model) {
+                  throw new Error("Model is required");
+                }
+                if (quality !== "high" && quality !== "low") {
+                  throw new Error("Quality must be 'high' or 'low'");
+                }
 
                 // Track project creation
                 analytics.trackProjectCreated(model, quality);
@@ -321,6 +340,7 @@ export default function Home() {
                     </div>
                     <textarea
                       placeholder="Build me a budgeting app..."
+                      aria-label="Describe your app idea"
                       required
                       name="prompt"
                       rows={1}
@@ -343,7 +363,10 @@ export default function Home() {
                     <Select.Root
                       name="model"
                       value={model}
-                      onValueChange={setModel}
+                      onValueChange={(value) => {
+                        setModel(value);
+                        setDefaultModel(value);
+                      }}
                     >
                       <Select.Trigger className="inline-flex items-center gap-1 rounded-md p-1 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-500 transition-colors">
                         <Select.Value aria-label={model}>
@@ -356,7 +379,7 @@ export default function Home() {
                       <Select.Portal>
                         <Select.Content className="overflow-hidden rounded-md bg-gray-900 shadow ring-1 ring-purple-500/20">
                           <Select.Viewport className="space-y-1 p-2">
-                            {MODELS.map((m) => (
+                            {models.map((m) => (
                               <Select.Item
                                 key={m.value}
                                 value={m.value}
@@ -379,71 +402,30 @@ export default function Home() {
 
                     <div className="h-4 w-px bg-gray-700 max-sm:hidden" />
 
-                    {/* Quality selector commented out - using high quality by default 
-                    <Select.Root
-                      name="quality"
-                      value={quality}
-                      onValueChange={setQuality}
-                    >
-                      <Select.Trigger className="inline-flex items-center gap-1 rounded p-1 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-purple-500 transition-colors">
-                        <Select.Value aria-label={quality}>
-                          <span className="max-sm:hidden">
-                            {quality === "low"
-                              ? "Low quality [faster]"
-                              : "High quality [slower]"}
-                          </span>
-                          <span className="sm:hidden">
-                            <LightningBoltIcon className="size-3" />
-                          </span>
-                        </Select.Value>
-                        <Select.Icon>
-                          <ChevronDownIcon className="size-3" />
-                        </Select.Icon>
-                      </Select.Trigger>
-                      <Select.Portal>
-                        <Select.Content className="overflow-hidden rounded-md bg-gray-900 shadow ring-1 ring-purple-500/20">
-                          <Select.Viewport className="space-y-1 p-2">
-                            {[
-                              { value: "low", label: "Low quality [faster]" },
-                              {
-                                value: "high",
-                                label: "High quality [slower]",
-                              },
-                            ].map((q) => (
-                              <Select.Item
-                                key={q.value}
-                                value={q.value}
-                                className="flex cursor-pointer items-center gap-1 rounded-md p-1 text-sm text-gray-300 data-[highlighted]:bg-gray-800 data-[highlighted]:outline-none transition-colors"
-                              >
-                                <Select.ItemText className="inline-flex items-center gap-2 text-gray-300">
-                                  {q.label}
-                                </Select.ItemText>
-                                <Select.ItemIndicator>
-                                  <CheckIcon className="size-3 text-purple-500" />
-                                </Select.ItemIndicator>
-                              </Select.Item>
-                            ))}
-                          </Select.Viewport>
-                          <Select.ScrollDownButton />
-                          <Select.Arrow />
-                        </Select.Content>
-                      </Select.Portal>
-                    </Select.Root>
-                    */}
-                    
-                    {/* Hidden input to maintain form functionality */}
+                    {/* Hidden input for quality - always using high quality */}
                     <input type="hidden" name="quality" value={quality} />
                     
                     <div className="h-4 w-px bg-gray-700 max-sm:hidden" />
-                    <div>
+                    <div className="relative group">
                       <label
                         htmlFor="screenshot"
-                        className="flex cursor-pointer gap-2 text-sm text-gray-400 hover:underline"
+                        className={`flex gap-2 text-sm ${
+                          uploadsEnabled
+                            ? "cursor-pointer text-gray-400 hover:underline"
+                            : "cursor-not-allowed text-gray-600"
+                        }`}
+                        title={uploadsEnabled ? "" : "This feature is unavailable in this version"}
                       >
-                        <div className="flex size-6 items-center justify-center rounded bg-purple-800 hover:bg-purple-700 transition-colors">
+                        <div className={`flex size-6 items-center justify-center rounded ${
+                          uploadsEnabled
+                            ? "bg-purple-800 hover:bg-purple-700 transition-colors"
+                            : "bg-gray-700 opacity-50"
+                        }`}>
                           <UploadIcon className="size-4" />
                         </div>
-                        <div className="flex items-center justify-center transition hover:text-gray-300">
+                        <div className={`flex items-center justify-center transition ${
+                          uploadsEnabled ? "hover:text-gray-300" : ""
+                        }`}>
                           Attach
                         </div>
                       </label>
@@ -455,7 +437,13 @@ export default function Home() {
                         onChange={handleScreenshotUpload}
                         className="hidden"
                         ref={fileInputRef}
+                        disabled={!uploadsEnabled}
                       />
+                      {!uploadsEnabled && (
+                        <div className="absolute -top-10 left-0 hidden group-hover:block bg-gray-800 text-gray-300 text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                          This feature is unavailable in this version
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -507,23 +495,12 @@ export default function Home() {
           style={{ animationDelay: "1s", animationFillMode: "forwards" }}
         >
           <div>
-            <div className="font-medium">
-              Built by{" "}
-              <a
-                href="#"
-                className="font-semibold text-purple-400 underline-offset-4 transition hover:text-purple-300 hover:underline"
-              >
-                pollinations ai
-              </a>{" "}
-              and{" "}
-              <a
-                href="#"
-                className="font-semibold text-purple-400 underline-offset-4 transition hover:text-purple-300 hover:underline"
-              >
-                R3AP3R editz
-              </a>
-              .
-            </div>
+            <Link
+              href="/developers"
+              className="font-medium text-purple-400 underline-offset-4 transition hover:text-purple-300 hover:underline"
+            >
+              About the Developers
+            </Link>
           </div>
         </footer>
       </div>
@@ -554,6 +531,3 @@ function LoadingMessage({
     </div>
   );
 }
-
-// export const runtime = "edge";
-export const maxDuration = 45;
