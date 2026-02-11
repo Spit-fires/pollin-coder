@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     }
     console.error("Error fetching features:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
     }
     console.error("Error updating feature:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

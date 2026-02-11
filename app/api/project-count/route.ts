@@ -1,8 +1,18 @@
 import { getPrisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
 
-export async function GET() {
+// Rate limit: 30 requests per minute per IP
+const COUNT_RATE_LIMIT = { maxRequests: 30, windowMs: 60_000 };
+
+export async function GET(request: Request) {
   try {
+    const clientIp = getClientIp(request);
+    const rl = checkRateLimit(`project-count:${clientIp}`, COUNT_RATE_LIMIT);
+    if (!rl.allowed) {
+      return rateLimitResponse(rl, COUNT_RATE_LIMIT);
+    }
+
     const prisma = getPrisma();
     
     // Get the total count of all projects

@@ -76,12 +76,13 @@ export async function callPollinationsAPI(
 
 /**
  * Make a streaming request to Pollinations AI API
+ * Uses a longer timeout (60s) since streams can run for the full maxDuration.
  */
 export async function callPollinationsAPIStream(
   apiKey: string,
   body: any
 ): Promise<Response> {
-  return callPollinationsAPI(apiKey, body, { stream: true });
+  return callPollinationsAPI(apiKey, body, { stream: true, timeout: 60_000 });
 }
 
 /**

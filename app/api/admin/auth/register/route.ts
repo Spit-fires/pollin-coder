@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import crypto from "crypto";
 import { getPrisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/admin-auth";
 import { checkRateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
@@ -66,12 +67,18 @@ export async function POST(request: Request) {
 
     const { email, password, name, registrationKey } = parseResult.data;
 
-    // Verify registration key if required
-    if (requiredKey && registrationKey !== requiredKey) {
-      return NextResponse.json(
-        { error: "Invalid registration key" },
-        { status: 403 }
-      );
+    // Verify registration key using constant-time comparison to prevent timing attacks
+    if (requiredKey) {
+      const keyBuffer = new Uint8Array(Buffer.from(registrationKey || ''));
+      const requiredBuffer = new Uint8Array(Buffer.from(requiredKey));
+      const isValidKey = keyBuffer.length === requiredBuffer.length &&
+        crypto.timingSafeEqual(keyBuffer, requiredBuffer);
+      if (!isValidKey) {
+        return NextResponse.json(
+          { error: "Invalid registration key" },
+          { status: 403 }
+        );
+      }
     }
 
     const prisma = getPrisma();

@@ -1,15 +1,25 @@
 import { NextResponse } from "next/server";
 import { FALLBACK_MODELS } from "@/lib/constants";
+import { checkRateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 const POLLINATIONS_MODELS_ENDPOINT = "https://gen.pollinations.ai/v1/models";
 
+// Rate limit: 20 requests per minute per IP
+const MODEL_SCOPES_RATE_LIMIT = { maxRequests: 20, windowMs: 60_000 };
+
 /**
  * Returns a comma-separated list of model values for use in authorization URLs
  * e.g., "openai,openai-fast,openai-large,claude,mistral"
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const clientIp = getClientIp(request);
+  const rl = checkRateLimit(`model-scopes:${clientIp}`, MODEL_SCOPES_RATE_LIMIT);
+  if (!rl.allowed) {
+    return rateLimitResponse(rl, MODEL_SCOPES_RATE_LIMIT);
+  }
+
   try {
     const response = await fetch(POLLINATIONS_MODELS_ENDPOINT, {
       headers: {

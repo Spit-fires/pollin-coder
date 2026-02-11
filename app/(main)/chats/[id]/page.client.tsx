@@ -107,6 +107,19 @@ export default function PageClient({ chat }: { chat: Chat }) {
     chat.messages.filter((m) => m.role === "assistant").at(-1),
   );
 
+  // Verify chat ownership on mount to prevent read-only IDOR
+  useEffect(() => {
+    authFetch(`/api/chats/${chat.id}`)
+      .then((res) => {
+        if (!res.ok) {
+          router.push('/');
+        }
+      })
+      .catch(() => {
+        // If auth fails (no key), api-client redirects to /login
+      });
+  }, [chat.id, router]);
+
   useEffect(() => {
     let streamInstance: ReturnType<typeof ChatCompletionStream.fromReadableStream> | null = null;
 

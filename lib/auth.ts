@@ -4,6 +4,7 @@ import { getPrisma } from "./prisma";
 // Avoids 2-3 upstream HTTP calls per request
 const authCache = new Map<string, { user: any; expiresAt: number }>();
 const AUTH_CACHE_TTL_MS = 30_000;
+const AUTH_CACHE_MAX_SIZE = 500;
 
 function getCachedAuth(apiKey: string) {
   const cached = authCache.get(apiKey);
@@ -15,14 +16,25 @@ function getCachedAuth(apiKey: string) {
 }
 
 function setCachedAuth(apiKey: string, user: any) {
-  authCache.set(apiKey, { user, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
-  // Evict stale entries periodically (keep cache bounded)
-  if (authCache.size > 500) {
+  // Hard cap: evict expired entries first, then oldest entries if still over limit
+  if (authCache.size >= AUTH_CACHE_MAX_SIZE) {
     const now = Date.now();
+    // First pass: remove expired entries
     for (const [key, val] of authCache) {
       if (val.expiresAt <= now) authCache.delete(key);
     }
+    // Second pass: if still at capacity, remove oldest entries (FIFO via insertion order)
+    if (authCache.size >= AUTH_CACHE_MAX_SIZE) {
+      const entriesToRemove = authCache.size - AUTH_CACHE_MAX_SIZE + 1;
+      let removed = 0;
+      for (const key of authCache.keys()) {
+        if (removed >= entriesToRemove) break;
+        authCache.delete(key);
+        removed++;
+      }
+    }
   }
+  authCache.set(apiKey, { user, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
 }
 
 /**
@@ -97,8 +109,10 @@ export async function getCurrentUser(apiKey?: string) {
       where: { email: profile.email },
     });
 
-    // Cache the result (cache null too to avoid repeated failed lookups)
-    setCachedAuth(resolvedApiKey, user);
+    // Only cache non-null results to avoid blocking valid users who haven't been provisioned yet
+    if (user) {
+      setCachedAuth(resolvedApiKey, user);
+    }
 
     return user;
   } catch (error) {

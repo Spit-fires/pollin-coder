@@ -48,20 +48,34 @@ export async function POST(req: Request) {
       );
     }
 
-    // Enforce request body size limit (4KB max) to prevent memory abuse
-    const contentLength = parseInt(req.headers.get('content-length') || '0');
-    if (contentLength > 4096) {
+    // Parse and validate request body (also enforces size limit — 4KB max)
+    let rawBody: string;
+    try {
+      rawBody = await req.text();
+    } catch {
       return new Response(
-        JSON.stringify({ error: "Payload too large" }),
-        {
-          status: 413,
-          headers: { "Content-Type": "application/json" }
-        }
+        JSON.stringify({ error: "Failed to read request body" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Parse and validate request body
-    const body = await req.json();
+    if (rawBody.length > 4096) {
+      return new Response(
+        JSON.stringify({ error: "Payload too large" }),
+        { status: 413, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    let body: unknown;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const parseResult = requestSchema.safeParse(body);
     
     if (!parseResult.success) {

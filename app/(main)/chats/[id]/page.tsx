@@ -6,12 +6,11 @@ import PageClient from "./page.client";
 /**
  * Chat page (server component)
  *
- * Auth note: We do NOT verify ownership here because the API key lives
- * in localStorage which is inaccessible from server components.
- * Security is maintained because:
- *   1. Chat IDs are CUIDs – effectively unguessable
- *   2. All mutations (createMessage, streaming) require apiKey via header
- *   3. The Providers wrapper redirects unauthenticated users to /login
+ * Auth note: The API key lives in localStorage which is inaccessible from
+ * server components. Ownership is verified client-side in PageClient via
+ * an authenticated API call to /api/chats/[id]. If the user doesn't own
+ * the chat, they are redirected away. All mutations (createMessage,
+ * streaming) also require apiKey via header and check ownership.
  */
 export default async function Page({
   params,

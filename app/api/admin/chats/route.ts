@@ -102,7 +102,7 @@ export async function GET(request: Request) {
     
     console.error('Error fetching chats:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
@@ -180,7 +180,7 @@ export async function DELETE(request: Request) {
     
     console.error('Error deleting chat:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
