@@ -6,7 +6,6 @@ import * as Label from "./label";
 import * as RadioGroup from "./radio-group";
 import * as Select from "./select";
 import * as Textarea from "./textarea";
-// import * as Checkbox from "./checkbox";
 
 const shadcnDocs = [
   Avatar,
@@ -17,7 +16,6 @@ const shadcnDocs = [
   RadioGroup,
   Select,
   Textarea,
-  // Checkbox,
 ];
 
 export default shadcnDocs;

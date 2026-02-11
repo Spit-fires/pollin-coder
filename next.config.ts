@@ -32,7 +32,7 @@ const nextConfig: NextConfig = {
   },
   // Optimize barrel export packages for smaller bundles
   experimental: {
-    optimizePackageImports: ['lucide-react', '@heroicons/react'],
+    optimizePackageImports: ['lucide-react', '@heroicons/react', '@radix-ui/react-toast', '@react-three/drei'],
   },
   webpack: (config, options) => {
     if (options.nextRuntime === "edge") {

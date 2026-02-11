@@ -92,7 +92,7 @@ export default function LoginPage() {
               <p>This app uses the Bring Your Own Pollen (BYOP) model.</p>
               <p>You pay for your own AI usage. We pay $0.</p>
               <p>
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <a 
                   href="https://enter.pollinations.ai" 
                   target="_blank" 

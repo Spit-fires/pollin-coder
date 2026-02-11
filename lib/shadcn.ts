@@ -3092,7 +3092,4 @@ export const essentialShadcnComponents = {
   radioGroup: radioGroup,
   select: select,
   textarea: textarea,
-  // badge: badge,
-  // dialog: dialog,
-  // table: table,
 };
