@@ -108,8 +108,15 @@ export function rateLimitResponse(result: RateLimitResult, config: RateLimitConf
 
 /**
  * Extract client IP from request headers (works on Vercel).
+ * Prefers x-vercel-forwarded-for which cannot be spoofed by clients on Vercel.
  */
 export function getClientIp(request: Request): string {
+  // Vercel-set header — cannot be spoofed by clients
+  const vercelForwarded = request.headers.get("x-vercel-forwarded-for");
+  if (vercelForwarded) {
+    return vercelForwarded.split(",")[0].trim();
+  }
+  // Fallback for non-Vercel environments
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) {
     return forwarded.split(",")[0].trim();

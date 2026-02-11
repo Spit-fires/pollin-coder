@@ -5,6 +5,11 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
+/** Sanitize text for safe embedding in HTML meta tags */
+function sanitizeForMeta(text: string): string {
+  return text.replace(/[<>"'&]/g, '').slice(0, 200);
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -16,7 +21,7 @@ export async function generateMetadata({
     notFound();
   }
 
-  let title = message.chat.title;
+  let title = sanitizeForMeta(message.chat.title);
   let searchParams = new URLSearchParams();
   searchParams.set("prompt", title);
 

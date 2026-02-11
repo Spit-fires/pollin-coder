@@ -16,13 +16,33 @@ const registerSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    // Check if admin registration is allowed
+    // Check if admin registration is explicitly allowed
     const allowRegistration = process.env.ALLOW_ADMIN_REGISTRATION === 'true';
-    const requiredKey = process.env.ADMIN_REGISTRATION_KEY;
 
-    if (!allowRegistration && !requiredKey) {
+    if (!allowRegistration) {
       return NextResponse.json(
         { error: "Admin registration is disabled" },
+        { status: 403 }
+      );
+    }
+
+    const requiredKey = process.env.ADMIN_REGISTRATION_KEY;
+
+    // Reject known placeholder values
+    const INSECURE_KEYS = [
+      'change_this_to_a_secure_random_string',
+      'CHANGE_ME_IMMEDIATELY',
+      'changeme',
+      '',
+    ];
+
+    if (!requiredKey || INSECURE_KEYS.includes(requiredKey)) {
+      console.error(
+        'SECURITY: ADMIN_REGISTRATION_KEY is missing or set to an insecure default. '
+        + 'Set a strong random value before enabling admin registration.'
+      );
+      return NextResponse.json(
+        { error: "Admin registration is misconfigured" },
         { status: 403 }
       );
     }
@@ -62,9 +82,10 @@ export async function POST(request: Request) {
     });
 
     if (existing) {
+      // Return generic error to prevent email enumeration
       return NextResponse.json(
-        { error: "Admin account with this email already exists" },
-        { status: 409 }
+        { error: "Registration failed" },
+        { status: 400 }
       );
     }
 

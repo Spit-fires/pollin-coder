@@ -7,7 +7,10 @@ import { checkRateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit
 const AUTH_RATE_LIMIT = { maxRequests: 5, windowMs: 60_000 };
 
 const requestSchema = z.object({
-  apiKey: z.string().min(1).max(500),
+  apiKey: z.string().regex(
+    /^(sk_|pk_)[a-zA-Z0-9_-]{10,500}$/,
+    "Invalid API key format"
+  ),
 });
 
 export async function POST(request: Request) {
@@ -31,15 +34,19 @@ export async function POST(request: Request) {
 
     const { apiKey } = parseResult.data;
 
-    // Validate the API key by checking with Pollinations
+    // Validate the API key by checking with Pollinations (with timeout)
+    const controller1 = new AbortController();
+    const timeout1 = setTimeout(() => controller1.abort(), 10_000);
     const validateResponse = await fetch(
       "https://gen.pollinations.ai/account/key",
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
+        signal: controller1.signal,
       }
     );
+    clearTimeout(timeout1);
 
     if (!validateResponse.ok) {
       return NextResponse.json(
@@ -57,17 +64,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // Optionally fetch profile info
+    // Optionally fetch profile info (with timeout)
     let profileInfo = null;
     try {
+      const controller2 = new AbortController();
+      const timeout2 = setTimeout(() => controller2.abort(), 10_000);
       const profileResponse = await fetch(
         "https://gen.pollinations.ai/account/profile",
         {
           headers: {
             Authorization: `Bearer ${apiKey}`,
           },
+          signal: controller2.signal,
         }
       );
+      clearTimeout(timeout2);
       if (profileResponse.ok) {
         profileInfo = await profileResponse.json();
       }
@@ -93,10 +104,9 @@ export async function POST(request: Request) {
       });
     }
 
-    // Return API key and profile in JSON response (client will store in localStorage)
+    // Return validation result and profile (do NOT echo the API key back)
     return NextResponse.json({
       success: true,
-      apiKey: apiKey, // Client will store this in localStorage
       keyInfo: keyInfo ? { valid: keyInfo.valid, tier: keyInfo.tier } : null,
       profile: profileInfo ? {
         name: profileInfo.name,

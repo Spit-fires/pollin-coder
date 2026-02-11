@@ -12,20 +12,24 @@ import { TASK_MODELS } from "@/lib/constants";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 
-// Allowlist of domains for screenshot URLs to prevent SSRF
-const ALLOWED_SCREENSHOT_DOMAINS = [
+// Allowlist of exact domains for screenshot URLs to prevent SSRF
+const ALLOWED_SCREENSHOT_DOMAINS = new Set([
   'files.catbox.moe',
   'litter.catbox.moe',
-  's3.amazonaws.com',
-];
+]);
+
+// Pattern for S3 buckets: <bucket>.s3.amazonaws.com or <bucket>.s3.<region>.amazonaws.com
+const S3_HOSTNAME_PATTERN = /^[a-z0-9][a-z0-9.-]*\.s3(\.[a-z0-9-]+)?\.amazonaws\.com$/;
 
 function isAllowedScreenshotUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'https:') return false;
-    return ALLOWED_SCREENSHOT_DOMAINS.some(
-      (domain) => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`)
-    );
+    // Exact match for catbox domains
+    if (ALLOWED_SCREENSHOT_DOMAINS.has(parsed.hostname)) return true;
+    // Strict S3 pattern match (prevents matching ec2.amazonaws.com etc.)
+    if (S3_HOSTNAME_PATTERN.test(parsed.hostname)) return true;
+    return false;
   } catch {
     return false;
   }
@@ -43,7 +47,7 @@ const createChatSchema = z.object({
 
 const createMessageSchema = z.object({
   chatId: z.string().min(1, "Chat ID is required"),
-  text: z.string().min(1, "Message text cannot be empty").max(50000, "Message text is too long (max 50,000 characters)"),
+  text: z.string().min(1, "Message text cannot be empty").max(10000, "Message text is too long (max 10,000 characters)"),
   role: z.enum(["assistant", "user"]),
 });
 

@@ -3,6 +3,15 @@
 import { createContext, ReactNode, useState, useEffect, useMemo } from "react";
 import { getApiKey } from "@/lib/secure-storage";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
+
+// Schema for validating profile data from localStorage
+const profileSchema = z.object({
+  name: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  image: z.string().nullable().optional(),
+  tier: z.string().default("free"),
+}).passthrough();
 
 // Stream context for handling streaming responses
 export const Context = createContext<{
@@ -51,14 +60,15 @@ export default function Providers({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Load profile from localStorage
+    // Load and validate profile from localStorage
     try {
       const profileStr = localStorage.getItem('pollinations_profile');
-      const profile = profileStr ? JSON.parse(profileStr) : undefined;
+      const rawProfile = profileStr ? JSON.parse(profileStr) : undefined;
+      const profile = rawProfile ? profileSchema.safeParse(rawProfile) : undefined;
       
       setAuthState({
         authenticated: true,
-        profile,
+        profile: profile?.success ? profile.data as UserProfile : undefined,
         loading: false,
       });
     } catch (err) {

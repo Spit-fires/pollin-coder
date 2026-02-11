@@ -4,6 +4,11 @@ import { cache } from "react";
 import CodeRunner from "@/components/code-runner";
 import { getPrisma } from "@/lib/prisma";
 
+/** Sanitize text for safe embedding in HTML meta tags */
+function sanitizeForMeta(text: string): string {
+  return text.replace(/[<>"'&]/g, '').slice(0, 200);
+}
+
 /*
   This is the Share page for v1 apps, before the chat interface was added.
 
@@ -21,12 +26,13 @@ export async function generateMetadata({
     notFound();
   }
 
+  const safePrompt = sanitizeForMeta(prompt);
   let searchParams = new URLSearchParams();
-  searchParams.set("prompt", prompt);
+  searchParams.set("prompt", safePrompt);
 
   return {
     title: "An app generated with Pollin Coder",
-    description: `Prompt: ${generatedApp?.prompt}`,
+    description: `Prompt: ${safePrompt}`,
     openGraph: {
       images: [`/api/og?${searchParams}`],
     },

@@ -16,15 +16,19 @@ export async function GET(request: Request) {
       );
     }
 
-    // Validate the key and get its info
+    // Validate the key and get its info (with timeout)
+    const controller1 = new AbortController();
+    const timeout1 = setTimeout(() => controller1.abort(), 10_000);
     const keyResponse = await fetch(
       "https://gen.pollinations.ai/account/key",
       {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
+        signal: controller1.signal,
       }
     );
+    clearTimeout(timeout1);
 
     if (!keyResponse.ok) {
       return NextResponse.json(
@@ -42,17 +46,21 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch profile info
+    // Fetch profile info (with timeout)
     let profileInfo = null;
     try {
+      const controller2 = new AbortController();
+      const timeout2 = setTimeout(() => controller2.abort(), 10_000);
       const profileResponse = await fetch(
         "https://gen.pollinations.ai/account/profile",
         {
           headers: {
             Authorization: `Bearer ${apiKey}`,
           },
+          signal: controller2.signal,
         }
       );
+      clearTimeout(timeout2);
       if (profileResponse.ok) {
         profileInfo = await profileResponse.json();
       }
@@ -60,17 +68,21 @@ export async function GET(request: Request) {
       console.warn("Failed to fetch profile:", error);
     }
 
-    // Fetch balance info
+    // Fetch balance info (with timeout)
     let balanceInfo = null;
     try {
+      const controller3 = new AbortController();
+      const timeout3 = setTimeout(() => controller3.abort(), 10_000);
       const balanceResponse = await fetch(
         "https://gen.pollinations.ai/account/balance",
         {
           headers: {
             Authorization: `Bearer ${apiKey}`,
           },
+          signal: controller3.signal,
         }
       );
+      clearTimeout(timeout3);
       if (balanceResponse.ok) {
         balanceInfo = await balanceResponse.json();
       }

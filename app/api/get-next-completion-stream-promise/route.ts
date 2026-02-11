@@ -48,6 +48,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // Enforce request body size limit (4KB max) to prevent memory abuse
+    const contentLength = parseInt(req.headers.get('content-length') || '0');
+    if (contentLength > 4096) {
+      return new Response(
+        JSON.stringify({ error: "Payload too large" }),
+        {
+          status: 413,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+    }
+
     // Parse and validate request body
     const body = await req.json();
     const parseResult = requestSchema.safeParse(body);

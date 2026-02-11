@@ -1,8 +1,15 @@
 import { ImageResponse } from "next/og";
 import { domain } from "@/lib/domain";
+
+/** Sanitize text for safe rendering */
+function sanitizeText(text: string): string {
+  return text.replace(/[<>"'&]/g, '');
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const prompt = searchParams.get("prompt");
+  const rawPrompt = searchParams.get("prompt");
+  const prompt = rawPrompt ? sanitizeText(rawPrompt) : null;
 
   return new ImageResponse(
     (

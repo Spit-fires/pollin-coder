@@ -49,8 +49,8 @@ export async function POST(
       );
     }
 
-    // Authorization: only allow forking own projects or public projects (no userId)
-    if (originalChat.userId && originalChat.userId !== user.id) {
+    // Authorization: only allow forking own projects
+    if (originalChat.userId !== user.id) {
       return NextResponse.json(
         { error: 'Access denied' },
         { status: 403 }
