@@ -1,18 +1,9 @@
 /**
  * Pollinations AI API utilities with BYOP (Bring Your Own Pollen) authentication
+ * API key is passed explicitly from client → server actions / API routes.
  */
-
-import { cookies } from "next/headers";
 
 const POLLINATIONS_API_URL = "https://gen.pollinations.ai/v1/chat/completions";
-
-/**
- * Get the Pollinations AI API key from cookies (server-side)
- */
-export async function getApiKeyFromCookies(): Promise<string | undefined> {
-  const cookieStore = await cookies();
-  return cookieStore.get("pollinations_api_key")?.value;
-}
 
 /**
  * Create headers for Pollinations AI API requests with API key authentication

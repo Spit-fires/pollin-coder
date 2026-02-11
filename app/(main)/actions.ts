@@ -7,7 +7,7 @@ import {
   screenshotToCodePrompt,
   softwareArchitectPrompt,
 } from "@/lib/prompts";
-import { callPollinationsAPISync, getApiKeyFromCookies } from "@/lib/pollinations";
+import { callPollinationsAPISync } from "@/lib/pollinations";
 import { TASK_MODELS } from "@/lib/constants";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -42,12 +42,13 @@ const createChatSchema = z.object({
 });
 
 const createMessageSchema = z.object({
-  chatId: z.string().min(1),
-  text: z.string().min(1).max(50000),
+  chatId: z.string().min(1, "Chat ID is required"),
+  text: z.string().min(1, "Message text cannot be empty").max(50000, "Message text is too long (max 50,000 characters)"),
   role: z.enum(["assistant", "user"]),
 });
 
 export async function createChat(
+  apiKey: string,
   prompt: string,
   model: string,
   quality: "high" | "low",
@@ -60,10 +61,7 @@ export async function createChat(
   }
 
   // Get authenticated user
-  const user = await requireAuth();
-  
-  // Get API key from cookies
-  const apiKey = await getApiKeyFromCookies();
+  const user = await requireAuth(apiKey);
   
   if (!apiKey) {
     redirect("/login");
@@ -238,6 +236,7 @@ export async function createChat(
 }
 
 export async function createMessage(
+  apiKey: string,
   chatId: string,
   text: string,
   role: "assistant" | "user",
@@ -245,11 +244,12 @@ export async function createMessage(
   // Validate input
   const validation = createMessageSchema.safeParse({ chatId, text, role });
   if (!validation.success) {
-    throw new Error(`Invalid input: ${validation.error.message}`);
+    const errors = validation.error.errors.map(e => e.message).join(", ");
+    throw new Error(`Invalid input: ${errors}`);
   }
 
   // Get authenticated user
-  const user = await requireAuth();
+  const user = await requireAuth(apiKey);
   
   const prisma = getPrisma();
   const chat = await prisma.chat.findUnique({

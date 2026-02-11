@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useContext, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthContext } from "@/app/(main)/providers";
+import { clearApiKey } from "@/lib/secure-storage";
 
 export default function Header() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -13,7 +14,13 @@ export default function Header() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
+      // Clear localStorage
+      clearApiKey();
+      localStorage.removeItem('pollinations_profile');
+      
+      // Call logout endpoint (optional, for server-side cleanup)
       await fetch("/api/auth/logout", { method: "POST" });
+      
       router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);

@@ -6,6 +6,7 @@ import ThreeBackgroundScene from "@/components/ThreeBackgroundScene";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Spinner from "@/components/spinner";
 import LogoSmall from "@/components/icons/logo-small";
+import { setApiKey } from "@/lib/secure-storage";
 
 export default function CallbackPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -37,7 +38,15 @@ export default function CallbackPage() {
         // Clear the key from URL hash to prevent leakage via history/referrer
         window.history.replaceState(null, "", window.location.pathname);
 
-        // Send the key to our server to set as cookie
+        // Store API key in localStorage
+        const stored = setApiKey(apiKey);
+        if (!stored) {
+          setStatus("error");
+          setErrorMessage("Failed to store API key securely.");
+          return;
+        }
+
+        // Validate with server and create/update user in database
         const response = await fetch("/api/auth/set-key", {
           method: "POST",
           headers: {
@@ -49,6 +58,13 @@ export default function CallbackPage() {
         if (!response.ok) {
           const error = await response.json();
           throw new Error(error.message || "Failed to authenticate");
+        }
+
+        const data = await response.json();
+        
+        // Optionally store profile in localStorage for quick access
+        if (data.profile) {
+          localStorage.setItem('pollinations_profile', JSON.stringify(data.profile));
         }
 
         setStatus("success");

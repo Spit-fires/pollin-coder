@@ -107,7 +107,7 @@ export default function DevelopersPage() {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-purple-400" />
-                      <span>Implemented user-based API key management with secure cookies</span>
+                      <span>Implemented client-side API key management with localStorage-based storage</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-purple-400" />

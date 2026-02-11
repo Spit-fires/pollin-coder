@@ -5,6 +5,8 @@ import ChevronRightIcon from "@/components/icons/chevron-right";
 import CloseIcon from "@/components/icons/close-icon";
 import RefreshIcon from "@/components/icons/refresh";
 import { extractFirstCodeBlock, splitByFirstCodeFence } from "@/lib/utils";
+import { exportProjectAsZip } from "@/lib/zip-export";
+import { Download } from "lucide-react";
 import { useState } from "react";
 import type { Chat, Message } from "./page";
 import { Share } from "./share";
@@ -168,6 +170,15 @@ export default function CodeViewer({
           >
             <RefreshIcon className="size-3" />
             Refresh
+          </button>
+          <button
+            className="inline-flex items-center gap-1 rounded border border-gray-300 px-1.5 py-0.5 text-sm text-white transition enabled:hover:bg-white/10 disabled:opacity-50"
+            onClick={() => exportProjectAsZip(code, chat.title || "pollin-app")}
+            disabled={!code || streamAppIsGenerating}
+            title="Download as ZIP"
+          >
+            <Download className="size-3" />
+            Download ZIP
           </button>
         </div>
         <div className="flex items-center justify-end gap-3">

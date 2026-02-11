@@ -19,6 +19,8 @@ import { XCircleIcon } from "@heroicons/react/20/solid";
 import { SUGGESTED_PROMPTS } from "@/lib/constants";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useModels, getDefaultModel, setDefaultModel } from "@/hooks/use-models";
+import { authFetch } from "@/lib/api-client";
+import { getApiKey } from "@/lib/secure-storage";
 
 export default function Home() {
   const { setStreamPromise } = use(Context);
@@ -135,7 +137,7 @@ export default function Home() {
     formData.append('fileToUpload', file);
 
     try {
-      const response = await fetch('/api/upload', {
+      const response = await authFetch('/api/upload', {
         method: 'POST',
         body: formData
       });
@@ -248,6 +250,7 @@ export default function Home() {
             style={{ animationDelay: "0.6s", animationFillMode: "forwards" }}
             action={async (formData) => {
               startTransition(async () => {
+                try {
                 const { prompt, model, quality } = Object.fromEntries(formData);
 
                 if (typeof prompt !== "string" || !prompt) {
@@ -266,20 +269,32 @@ export default function Home() {
                   analytics.trackScreenshotUploaded();
                 }
 
+                const apiKey = getApiKey();
+                if (!apiKey) {
+                  router.push("/login");
+                  return;
+                }
+
                 const { chatId, lastMessageId } = await createChat(
+                  apiKey,
                   prompt,
                   model,
                   quality,
                   screenshotUrl,
                 );
 
-                const streamPromise = fetch(
+                const streamPromise = authFetch(
                   "/api/get-next-completion-stream-promise",
                   {
                     method: "POST",
                     body: JSON.stringify({ messageId: lastMessageId, model }),
                   },
-                ).then((res) => {
+                ).then(async (res) => {
+                  // Check if response is OK before treating as stream
+                  if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+                    throw new Error(errorData.error || `Request failed: ${res.status}`);
+                  }
                   if (!res.body) {
                     throw new Error("No body on response");
                   }
@@ -290,6 +305,21 @@ export default function Home() {
                   setStreamPromise(streamPromise);
                   router.push(`/chats/${chatId}`);
                 });
+                } catch (error) {
+                  console.error('Error creating chat:', error);
+                  const errorMessage = error instanceof Error ? error.message : 'Failed to create chat. Please try again.';
+                  // Show user-friendly error messages
+                  if (errorMessage.includes('Authentication')) {
+                    alert('Your session has expired. Please log in again.');
+                    router.push('/login');
+                  } else if (errorMessage.includes('rate limit')) {
+                    alert('Rate limit exceeded. Please wait a moment before trying again.');
+                  } else if (errorMessage.includes('pollen balance')) {
+                    alert('Insufficient pollen balance. Please add more pollen to your Pollinations account.');
+                  } else {
+                    alert(errorMessage);
+                  }
+                }
               });
             }}
           >

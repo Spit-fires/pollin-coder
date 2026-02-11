@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Header from "@/components/header";
 import Spinner from "@/components/spinner";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { authFetch } from "@/lib/api-client";
 
 interface Project {
   id: string;
@@ -83,14 +85,14 @@ export default function ProjectsPage() {
         setIsLoading(true);
       }
       
-      const response = await fetch('/api/projects');
+      const response = await authFetch('/api/projects');
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const data = await response.json();
-      setProjects(data);
+      setProjects(data.projects || []); // Fix: Extract projects array from response
     } catch (error) {
       console.error('Failed to fetch projects:', error);
       setError('Failed to load projects. Please try again.');
@@ -227,20 +229,28 @@ export default function ProjectsPage() {
                       </span>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => handleFork(project.id)}
-                    disabled={forkingProjectId === project.id || isRefreshing}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                  >
-                    {forkingProjectId === project.id ? (
-                      <>
-                        <Spinner className="w-5 h-5 mr-2" />
-                        Forking...
-                      </>
-                    ) : (
-                      'Fork Project'
-                    )}
-                  </button>
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/chats/${project.id}`}
+                      className="flex-1 bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition-colors text-center"
+                    >
+                      View Chat
+                    </Link>
+                    <button 
+                      onClick={() => handleFork(project.id)}
+                      disabled={forkingProjectId === project.id || isRefreshing}
+                      className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    >
+                      {forkingProjectId === project.id ? (
+                        <>
+                          <Spinner className="w-5 h-5 mr-2" />
+                          Forking...
+                        </>
+                      ) : (
+                        'Fork Project'
+                      )}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

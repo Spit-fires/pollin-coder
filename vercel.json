@@ -38,7 +38,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.sandpack.codesandbox.io https://plausible.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.catbox.moe https://*.amazonaws.com https://gen.pollinations.ai; connect-src 'self' https://gen.pollinations.ai https://plausible.io https://*.sandpack.codesandbox.io wss://*.sandpack.codesandbox.io; frame-src https://*.sandpack.codesandbox.io https://*.csb.app; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.sandpack.codesandbox.io https://plausible.io; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.catbox.moe https://*.amazonaws.com https://gen.pollinations.ai https://image.pollinations.ai; connect-src 'self' https://gen.pollinations.ai https://text.pollinations.ai https://image.pollinations.ai https://audio.pollinations.ai https://plausible.io https://*.sandpack.codesandbox.io wss://*.sandpack.codesandbox.io; frame-src https://*.sandpack.codesandbox.io https://*.csb.app; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
         }
       ]
     },

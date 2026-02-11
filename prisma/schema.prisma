@@ -13,11 +13,52 @@ model User {
   email     String   @unique
   name      String?
   tier      String?
-  chats     Chat[]
+  role      Role     @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  chats     Chat[]
 
   @@index([email])
+  @@index([role])
+}
+
+model Admin {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     AdminSession[]
+
+  @@index([email])
+}
+
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  adminId   String
+  email     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([adminId])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  action    String
+  targetId  String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([createdAt])
+  @@index([action])
 }
 
 model GeneratedApp {
@@ -41,10 +82,10 @@ model Chat {
   pollinCoderVersion String    @default("v2")
   shadcn             Boolean
   userId             String?
-  user               User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages           Message[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+  user               User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages           Message[]
 
   @@index([userId])
   @@index([createdAt])
@@ -55,11 +96,27 @@ model Message {
   role      String
   content   String
   chatId    String
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   position  Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId])
   @@index([chatId, position])
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  enabled     Boolean  @default(false)
+  description String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([key])
+}
+
+enum Role {
+  USER
+  ADMIN
 }

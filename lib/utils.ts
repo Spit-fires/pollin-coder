@@ -50,6 +50,39 @@ function parseFileName(fileName: string): { name: string; extension: string } {
   };
 }
 
+/**
+ * Extract all code blocks from markdown input
+ * Handled named blocks via {filename=path/to/file.tsx}
+ */
+export function extractAllCodeBlocks(input: string) {
+  const blocks: { code: string; language: string | null; filename: string | null; fullMatch: string }[] = [];
+  const regex = /```([^\n]*)\n([\s\S]*?)\n```/g;
+  let match;
+
+  while ((match = regex.exec(input)) !== null) {
+    const fenceTag = match[1] || "";
+    const code = match[2];
+    const fullMatch = match[0];
+
+    let language: string | null = null;
+    let filename: string | null = null;
+
+    const langMatch = fenceTag.match(/^([A-Za-z0-9]+)/);
+    if (langMatch) {
+      language = langMatch[1];
+    }
+
+    const fileMatch = fenceTag.match(/{\s*filename\s*=\s*([^}]+)\s*}/);
+    if (fileMatch) {
+      filename = fileMatch[1];
+    }
+
+    blocks.push({ code, language, filename, fullMatch });
+  }
+
+  return blocks;
+}
+
 export function splitByFirstCodeFence(markdown: string) {
   const result: {
     type: "text" | "first-code-fence" | "first-code-fence-generating";

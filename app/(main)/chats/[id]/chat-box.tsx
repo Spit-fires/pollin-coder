@@ -11,6 +11,8 @@ import { useModels, setDefaultModel } from "@/hooks/use-models";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import UploadIcon from "@/components/icons/upload-icon";
 import { XCircleIcon } from "@heroicons/react/20/solid";
+import { authFetch } from "@/lib/api-client";
+import { getApiKey } from "@/lib/secure-storage";
 
 export default function ChatBox({
   chat,
@@ -66,7 +68,7 @@ export default function ChatBox({
     formData.append('fileToUpload', file);
 
     try {
-      const response = await fetch('/api/upload', {
+      const response = await authFetch('/api/upload', {
         method: 'POST',
         body: formData
       });
@@ -90,16 +92,32 @@ export default function ChatBox({
       <form
         className="relative flex w-full flex-col gap-2"
         action={async () => {
+          // Client-side validation
+          const trimmedPrompt = prompt.trim();
+          if (!trimmedPrompt && !screenshotUrl) {
+            alert("Please enter a message");
+            return;
+          }
+          
           startTransition(async () => {
-            let messageText = prompt;
+            let messageText = trimmedPrompt;
             
             // Add the screenshot URL to the message if it exists
             if (screenshotUrl) {
-              messageText = `[Reference image: ${screenshotUrl}]\n\n${messageText}`;
+              messageText = messageText 
+                ? `[Reference image: ${screenshotUrl}]\n\n${messageText}`
+                : `[Reference image: ${screenshotUrl}]\n\nPlease analyze this image and implement what's shown.`;
             }
             
-            const message = await createMessage(chat.id, messageText, "user");
-            const streamPromise = fetch(
+            const apiKey = getApiKey();
+            if (!apiKey) {
+              alert("You need to log in first");
+              return;
+            }
+            
+            try {
+              const message = await createMessage(apiKey, chat.id, messageText, "user");
+            const streamPromise = authFetch(
               "/api/get-next-completion-stream-promise",
               {
                 method: "POST",
@@ -108,7 +126,12 @@ export default function ChatBox({
                   model: model, // Use the selected model
                 }),
               },
-            ).then((res) => {
+            ).then(async (res) => {
+              // Check if response is OK before treating as stream
+              if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+                throw new Error(errorData.error || `Request failed: ${res.status}`);
+              }
               if (!res.body) {
                 throw new Error("No body on response");
               }
@@ -124,6 +147,21 @@ export default function ChatBox({
                 fileInputRef.current.value = "";
               }
             });
+            } catch (error) {
+              console.error('Error creating message:', error);
+              const errorMessage = error instanceof Error ? error.message : 'Failed to send message. Please try again.';
+              // Show user-friendly error messages
+              if (errorMessage.includes('Authentication')) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login';
+              } else if (errorMessage.includes('rate limit')) {
+                alert('Rate limit exceeded. Please wait a moment before trying again.');
+              } else if (errorMessage.includes('pollen balance')) {
+                alert('Insufficient pollen balance. Please add more pollen to your Pollinations account.');
+              } else {
+                alert(errorMessage);
+              }
+            }
           });
         }}
       >
@@ -261,8 +299,9 @@ export default function ChatBox({
               <div className="pointer-events-none absolute inset-0 -bottom-[1px] rounded bg-purple-600" />
 
               <button
-                className="relative inline-flex size-6 items-center justify-center rounded bg-purple-600 font-medium text-white shadow-lg outline-purple-300 hover:bg-purple-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-all hover:shadow-[0_0_10px_rgba(168,85,247,0.8)] hover:scale-110"
+                className="relative inline-flex size-6 items-center justify-center rounded bg-purple-600 font-medium text-white shadow-lg outline-purple-300 hover:bg-purple-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition-all hover:shadow-[0_0_10px_rgba(168,85,247,0.8)] hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none"
                 type="submit"
+                disabled={disabled || (!prompt.trim() && !screenshotUrl)}
                 aria-label="Send message"
               >
                 <Spinner loading={disabled}>

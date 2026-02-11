@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { getPrisma } from "./prisma";
 
 // Simple in-memory cache for auth validation (30-second TTL)
@@ -27,22 +26,22 @@ function setCachedAuth(apiKey: string, user: any) {
 }
 
 /**
- * Get the current authenticated user from cookies.
- * Validates the API key against the Pollinations API to derive identity,
- * rather than trusting the client-readable profile cookie.
- * Returns null if not authenticated or key is invalid.
+ * Get the current authenticated user.
+ * Validates the API key against the Pollinations API to derive identity.
+ * 
+ * @param apiKey - API key from client (via localStorage → server action param or X-Pollinations-Key header).
+ * @returns User object if authenticated, null otherwise.
  */
-export async function getCurrentUser() {
+export async function getCurrentUser(apiKey?: string) {
   try {
-    const cookieStore = await cookies();
-    const apiKeyCookie = cookieStore.get("pollinations_api_key");
+    const resolvedApiKey = apiKey;
 
-    if (!apiKeyCookie?.value) {
+    if (!resolvedApiKey) {
       return null;
     }
 
     // Check cache first to avoid redundant upstream calls
-    const cachedUser = getCachedAuth(apiKeyCookie.value);
+    const cachedUser = getCachedAuth(resolvedApiKey);
     if (cachedUser !== undefined) {
       return cachedUser;
     }
@@ -54,7 +53,7 @@ export async function getCurrentUser() {
       "https://gen.pollinations.ai/account/key",
       {
         headers: {
-          Authorization: `Bearer ${apiKeyCookie.value}`,
+          Authorization: `Bearer ${resolvedApiKey}`,
         },
         signal: controller1.signal,
       }
@@ -70,14 +69,14 @@ export async function getCurrentUser() {
       return null;
     }
 
-    // Fetch verified profile from upstream (not from cookie)
+    // Fetch verified profile from upstream
     const controller2 = new AbortController();
     const timeout2 = setTimeout(() => controller2.abort(), 10_000);
     const profileResponse = await fetch(
       "https://gen.pollinations.ai/account/profile",
       {
         headers: {
-          Authorization: `Bearer ${apiKeyCookie.value}`,
+          Authorization: `Bearer ${resolvedApiKey}`,
         },
         signal: controller2.signal,
       }
@@ -99,7 +98,7 @@ export async function getCurrentUser() {
     });
 
     // Cache the result (cache null too to avoid repeated failed lookups)
-    setCachedAuth(apiKeyCookie.value, user);
+    setCachedAuth(resolvedApiKey, user);
 
     return user;
   } catch (error) {
@@ -113,11 +112,31 @@ export async function getCurrentUser() {
 }
 
 /**
- * Get the current user's ID or throw an error
- * Use this in server actions that require authentication
+ * Extract API key from X-Pollinations-Key header in a request
  */
-export async function requireAuth() {
-  const user = await getCurrentUser();
+export function extractApiKeyFromHeader(request: Request): string | null {
+  const apiKey = request.headers.get('X-Pollinations-Key');
+  
+  if (!apiKey) {
+    return null;
+  }
+
+  // Validate format
+  if (!/^(sk_|pk_)[a-zA-Z0-9_-]{10,500}$/.test(apiKey)) {
+    return null;
+  }
+
+  return apiKey;
+}
+
+/**
+ * Get the current user's ID or throw an error
+ * Use this in server actions and API routes that require authentication
+ * 
+ * @param apiKey - API key from client (localStorage → server action param or X-Pollinations-Key header).
+ */
+export async function requireAuth(apiKey?: string) {
+  const user = await getCurrentUser(apiKey);
   
   if (!user) {
     throw new Error("Authentication required");

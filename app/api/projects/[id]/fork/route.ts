@@ -1,5 +1,5 @@
 import { getPrisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, extractApiKeyFromHeader } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -8,12 +8,13 @@ const paramsSchema = z.object({
 });
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get authenticated user
-    const user = await getCurrentUser();
+    const apiKey = extractApiKeyFromHeader(request);
+    const user = await getCurrentUser(apiKey || undefined);
     
     if (!user) {
       return NextResponse.json(

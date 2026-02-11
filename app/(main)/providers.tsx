@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, ReactNode, useState, useEffect, useMemo } from "react";
+import { getApiKey } from "@/lib/secure-storage";
+import { useRouter } from "next/navigation";
 
 // Stream context for handling streaming responses
 export const Context = createContext<{
@@ -36,24 +38,37 @@ export default function Providers({ children }: { children: ReactNode }) {
     authenticated: false,
     loading: true,
   });
+  const router = useRouter();
 
   useEffect(() => {
-    // Fetch auth status on mount
-    fetch("/api/auth/status")
-      .then((res) => res.json())
-      .then((data) => {
-        setAuthState({
-          authenticated: data.authenticated,
-          profile: data.profile,
-          balance: data.balance,
-          loading: false,
-        });
-      })
-      .catch((err) => {
-        console.error("Failed to fetch auth status:", err);
-        setAuthState({ authenticated: false, loading: false });
+    // Check localStorage for API key
+    const apiKey = getApiKey();
+    
+    if (!apiKey) {
+      // No API key found - redirect to login
+      setAuthState({ authenticated: false, loading: false });
+      router.push("/login");
+      return;
+    }
+
+    // Load profile from localStorage
+    try {
+      const profileStr = localStorage.getItem('pollinations_profile');
+      const profile = profileStr ? JSON.parse(profileStr) : undefined;
+      
+      setAuthState({
+        authenticated: true,
+        profile,
+        loading: false,
       });
-  }, []);
+    } catch (err) {
+      console.error("Failed to load profile from localStorage:", err);
+      setAuthState({ 
+        authenticated: true, // Still authenticated if API key exists
+        loading: false 
+      });
+    }
+  }, [router]);
 
   // Memoize context values to prevent unnecessary re-renders
   const streamContextValue = useMemo(

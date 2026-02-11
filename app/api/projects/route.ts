@@ -1,5 +1,5 @@
 import { getPrisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, extractApiKeyFromHeader } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -10,8 +10,11 @@ const querySchema = z.object({
 
 export async function GET(request: Request) {
   try {
+    // Extract API key from request header
+    const apiKey = extractApiKeyFromHeader(request);
+    
     // Get authenticated user
-    const user = await getCurrentUser();
+    const user = await getCurrentUser(apiKey || undefined);
     
     if (!user) {
       return NextResponse.json(

@@ -42,6 +42,13 @@ The application uses the following environment variables:
 - `TURSO_DATABASE_URL`: Turso database URL (required) - Get one from [Turso](https://turso.tech/)
 - `TURSO_AUTH_TOKEN`: Turso auth token (required for production)
 
+### Admin Panel (Optional)
+
+If you want to enable the admin panel for user and content moderation:
+
+- `ALLOW_ADMIN_REGISTRATION`: Set to `true` to allow admin account creation (disable after first admin is created)
+- `ADMIN_REGISTRATION_KEY`: Secret key required for admin registration (recommended for production)
+
 ### Pollinations AI Authentication (BYOP - Bring Your Own Pollen)
 
 **This app uses the BYOP model:** Users authenticate with their own Pollinations accounts, and each user pays for their own AI usage. This means:
@@ -56,8 +63,9 @@ The application uses the following environment variables:
 1. User clicks "Connect with Pollinations" in your app
 2. They're redirected to `enter.pollinations.ai` to authorize
 3. They're redirected back with an API key in the URL fragment
-4. The key is stored securely in an httpOnly cookie
-5. All API calls use the user's key
+4. **The key is stored client-side in localStorage** (base64 encoded with checksum validation)
+5. All API calls send the key in the `X-Pollinations-Key` header
+6. **Security:** Enhanced CSP headers prevent XSS attacks; keys never touch server storage
 
 **For users to get started:**
 - Sign up at [enter.pollinations.ai](https://enter.pollinations.ai)
@@ -65,6 +73,51 @@ The application uses the following environment variables:
 - Connect your account to this app
 
 No server-side API key needed! Each user brings their own.
+
+## Admin Panel
+
+The admin panel provides full control over users, content, and system statistics.
+
+### Setup
+
+1. **Enable registration** (temporarily):
+   ```bash
+   ALLOW_ADMIN_REGISTRATION=true
+   ADMIN_REGISTRATION_KEY=your_secret_key_here
+   ```
+
+2. **Create first admin account**:
+   ```bash
+   curl -X POST http://localhost:3000/api/admin/auth/register \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "admin@example.com",
+       "password": "secure_password",
+       "registrationKey": "your_secret_key_here"
+     }'
+   ```
+
+3. **Disable registration** (recommended for production):
+   ```bash
+   ALLOW_ADMIN_REGISTRATION=false
+   ```
+
+4. **Access admin panel** at `/admin/login`
+
+### Features
+
+- **Dashboard**: System statistics, recent activity, model usage breakdown
+- **User Management**: View all users, delete accounts (cascade deletes chats/messages)
+- **Chat Moderation**: View and delete inappropriate content
+- **Feature Flags**: View current feature flag states
+- **Audit Log**: All admin actions are logged with metadata
+
+### Security
+
+- Separate authentication system from user auth (email/password with bcrypt)
+- Session tokens stored in-memory (15-minute TTL)
+- Rate limiting on login attempts (5 attempts per 15 minutes)
+- All admin actions logged to audit trail
 
 ## Contributing
 

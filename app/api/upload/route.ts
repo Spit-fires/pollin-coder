@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isUploadEnabled, getUploadDisabledMessage } from '@/lib/features';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, extractApiKeyFromHeader } from '@/lib/auth';
 import { checkRateLimit, rateLimitResponse, getClientIp } from '@/lib/rate-limit';
 
 // Rate limit: 10 uploads per minute per IP
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   // Check if uploads are enabled
-  if (!isUploadEnabled()) {
+  if (!(await isUploadEnabled())) {
     return NextResponse.json(
       { error: getUploadDisabledMessage() },
       { status: 403 }
@@ -34,7 +34,8 @@ export async function POST(request: Request) {
   }
 
   // Require authentication
-  const user = await getCurrentUser();
+  const apiKey = extractApiKeyFromHeader(request);
+  const user = await getCurrentUser(apiKey || undefined);
   if (!user) {
     return NextResponse.json(
       { error: 'Authentication required' },

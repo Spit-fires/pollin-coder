@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { getPrisma } from "@/lib/prisma";
 import { z } from "zod";
 import { checkRateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
@@ -77,36 +76,6 @@ export async function POST(request: Request) {
       console.warn("Failed to fetch profile:", error);
     }
 
-    // Set the API key as an httpOnly cookie with strict SameSite for CSRF protection
-    const cookieStore = await cookies();
-    cookieStore.set("pollinations_api_key", apiKey, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-      path: "/",
-    });
-
-    // Optionally store profile info in a separate cookie (not httpOnly since we want to read it client-side)
-    if (profileInfo) {
-      cookieStore.set(
-        "pollinations_profile",
-        JSON.stringify({
-          name: profileInfo.name,
-          email: profileInfo.email,
-          image: profileInfo.image,
-          tier: profileInfo.tier,
-        }),
-        {
-          httpOnly: false,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 30, // 30 days
-          path: "/",
-        }
-      );
-    }
-
     // Create or update user in database
     if (profileInfo && profileInfo.email) {
       const prisma = getPrisma();
@@ -124,9 +93,10 @@ export async function POST(request: Request) {
       });
     }
 
-    // Whitelist specific fields to prevent leaking sensitive upstream data
+    // Return API key and profile in JSON response (client will store in localStorage)
     return NextResponse.json({
       success: true,
+      apiKey: apiKey, // Client will store this in localStorage
       keyInfo: keyInfo ? { valid: keyInfo.valid, tier: keyInfo.tier } : null,
       profile: profileInfo ? {
         name: profileInfo.name,

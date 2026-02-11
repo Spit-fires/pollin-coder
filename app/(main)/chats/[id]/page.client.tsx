@@ -13,6 +13,8 @@ import CodeViewerLayout from "./code-viewer-layout";
 import type { Chat } from "./page";
 import { Context } from "../../providers";
 import ThreeBackgroundScene from "@/components/ThreeBackgroundScene";
+import { authFetch } from "@/lib/api-client";
+import { getApiKey } from "@/lib/secure-storage";
 
 // Helper for parsing SSE streams
 class ChatCompletionStream {
@@ -146,11 +148,34 @@ export default function PageClient({ chat }: { chat: Chat }) {
         })
         .on("finalContent", async (finalText: string) => {
           startTransition(async () => {
-            const message = await createMessage(
-              chat.id,
-              finalText,
-              "assistant",
-            );
+            const apiKey = getApiKey();
+            if (!apiKey) {
+              console.error("No API key available");
+              isHandlingStreamRef.current = false;
+              setStreamText("");
+              setStreamPromise(undefined);
+              router.refresh();
+              return;
+            }
+            
+            // Validate that we have content to save
+            const trimmedText = finalText.trim();
+            if (!trimmedText) {
+              console.warn("Stream completed with no content - the request may have failed or been rate limited");
+              isHandlingStreamRef.current = false;
+              setStreamText("");
+              setStreamPromise(undefined);
+              router.refresh();
+              return;
+            }
+            
+            try {
+              const message = await createMessage(
+                apiKey,
+                chat.id,
+                trimmedText,
+                "assistant",
+              );
 
             startTransition(() => {
               isHandlingStreamRef.current = false;
@@ -159,6 +184,13 @@ export default function PageClient({ chat }: { chat: Chat }) {
               setActiveMessage(message);
               router.refresh();
             });
+            } catch (error) {
+              console.error('Error saving assistant message:', error);
+              isHandlingStreamRef.current = false;
+              setStreamText("");
+              setStreamPromise(undefined);
+              router.refresh();
+            }
           });
         });
     }
@@ -232,15 +264,30 @@ export default function PageClient({ chat }: { chat: Chat }) {
               }}
               onRequestFix={(error: string) => {
                 startTransition(async () => {
+                  const errorText = error.trimStart();
+                  if (!errorText) {
+                    alert('No error information provided');
+                    return;
+                  }
+                  
                   let newMessageText = `The code is not working. Can you fix it? Here's the error:\n\n`;
-                  newMessageText += error.trimStart();
-                  const message = await createMessage(
-                    chat.id,
-                    newMessageText,
-                    "user",
-                  );
+                  newMessageText += errorText;
+                  
+                  const apiKey = getApiKey();
+                  if (!apiKey) {
+                    alert("You need to log in first");
+                    return;
+                  }
+                  
+                  try {
+                    const message = await createMessage(
+                      apiKey,
+                      chat.id,
+                      newMessageText,
+                      "user",
+                    );
 
-                  const streamPromise = fetch(
+                  const streamPromise = authFetch(
                     "/api/get-next-completion-stream-promise",
                     {
                       method: "POST",
@@ -257,6 +304,10 @@ export default function PageClient({ chat }: { chat: Chat }) {
                   });
                   setStreamPromise(streamPromise);
                   router.refresh();
+                  } catch (error) {
+                    console.error('Error requesting fix:', error);
+                    alert(error instanceof Error ? error.message : 'Failed to request fix. Please try again.');
+                  }
                 });
               }}
             />

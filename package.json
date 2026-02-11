@@ -22,7 +22,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:init": "node scripts/init-db.js"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.6.7",
@@ -40,12 +41,15 @@
     "@react-three/drei": "^10.0.8",
     "@react-three/fiber": "^9.1.2",
     "@tailwindcss/typography": "^0.5.15",
+    "@types/bcrypt": "^6.0.0",
     "@vercel/analytics": "^1.5.0",
     "@vercel/og": "^0.6.4",
     "@vercel/speed-insights": "^1.2.0",
+    "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dedent": "^1.5.3",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.468.0",
     "next": "^15.4.8",
     "next-plausible": "^3.12.4",

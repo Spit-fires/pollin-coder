@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { callPollinationsAPIStream, getApiKeyFromCookies } from "@/lib/pollinations";
+import { callPollinationsAPIStream } from "@/lib/pollinations";
 import { getPrisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, extractApiKeyFromHeader } from "@/lib/auth";
 import { checkRateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
 
 // Rate limit: 20 completions per minute per IP (generous for normal use, blocks abuse)
@@ -22,10 +22,10 @@ export async function POST(req: Request) {
       return rateLimitResponse(rl, COMPLETION_RATE_LIMIT);
     }
 
-    // Get authenticated user
-    const user = await getCurrentUser();
+    // Extract API key from request header
+    const apiKey = extractApiKeyFromHeader(req);
     
-    if (!user) {
+    if (!apiKey) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { 
@@ -35,10 +35,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get API key from cookies
-    const apiKey = await getApiKeyFromCookies();
+    // Get authenticated user
+    const user = await getCurrentUser(apiKey);
     
-    if (!apiKey) {
+    if (!user) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }), 
         { 

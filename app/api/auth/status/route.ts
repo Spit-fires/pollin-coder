@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { extractApiKeyFromHeader } from "@/lib/auth";
 
-export async function GET() {
+/**
+ * Auth status check — reads API key from X-Pollinations-Key header.
+ * Client calls this with authFetch() which attaches the header automatically.
+ */
+export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const apiKey = cookieStore.get("pollinations_api_key")?.value;
+    const apiKey = extractApiKeyFromHeader(request);
 
     if (!apiKey) {
       return NextResponse.json(
@@ -24,9 +27,6 @@ export async function GET() {
     );
 
     if (!keyResponse.ok) {
-      // Key is invalid, clear it
-      cookieStore.delete("pollinations_api_key");
-      cookieStore.delete("pollinations_profile");
       return NextResponse.json(
         { authenticated: false, message: "API key is invalid or expired" },
         { status: 401 }
@@ -36,9 +36,6 @@ export async function GET() {
     const keyInfo = await keyResponse.json();
 
     if (!keyInfo.valid) {
-      // Key is invalid, clear it
-      cookieStore.delete("pollinations_api_key");
-      cookieStore.delete("pollinations_profile");
       return NextResponse.json(
         { authenticated: false, message: "API key is not valid" },
         { status: 401 }
@@ -81,7 +78,6 @@ export async function GET() {
       console.warn("Failed to fetch balance:", error);
     }
 
-    // Whitelist specific fields to prevent leaking sensitive upstream data
     return NextResponse.json({
       authenticated: true,
       keyInfo: keyInfo ? { valid: keyInfo.valid, tier: keyInfo.tier } : null,

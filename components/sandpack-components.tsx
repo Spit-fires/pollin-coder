@@ -6,7 +6,8 @@ import {
   useSandpack,
 } from "@codesandbox/sandpack-react/unstyled";
 import { useState, useEffect } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, FileIcon } from "lucide-react";
+import { extractAllCodeBlocks } from "@/lib/utils";
 
 interface SandpackComponentsProps {
   code: string;
@@ -21,6 +22,23 @@ export default function SandpackComponents({
   dependencies,
   shadcnFiles,
 }: SandpackComponentsProps) {
+  // Parse code blocks to see if we have multiple files
+  const blocks = extractAllCodeBlocks(code);
+  const multiFiles: Record<string, string> = {};
+  
+  // If we have blocks with filenames, use them
+  if (blocks.length > 0) {
+    blocks.forEach(block => {
+      if (block.filename) {
+        multiFiles[block.filename] = block.code;
+      }
+    });
+  }
+
+  // Fallback: if no named files, use the first block as App.tsx
+  // or use the whole thing as App.tsx (legacy)
+  const mainCode = multiFiles["App.tsx"] || (blocks[0]?.code ?? code);
+
   const ErrorMessage = ({ onRequestFix }: { onRequestFix: (e: string) => void }) => {
     const { sandpack } = useSandpack();
     const [didCopy, setDidCopy] = useState(false);
@@ -103,7 +121,10 @@ export default function SandpackComponents({
       template="react-ts"
       className="relative h-full w-full [&_.sp-preview-container]:flex [&_.sp-preview-container]:h-full [&_.sp-preview-container]:w-full [&_.sp-preview-container]:grow [&_.sp-preview-container]:flex-col [&_.sp-preview-container]:justify-center [&_.sp-preview-iframe]:grow"
       files={{
-        "App.tsx": code,
+        // Add all multi-files first
+        ...multiFiles,
+        // Ensure App.tsx exists
+        "App.tsx": mainCode,
         ...shadcnFiles,
         "/tsconfig.json": {
           code: `{

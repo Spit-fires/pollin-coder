@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Middleware to handle authentication and routing
+// Middleware to handle routing
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Public routes that don't require authentication
   const publicRoutes = [
-    '/', // Home page should be accessible
+    '/',
     '/login',
     '/callback',
-    '/api/auth/set-key',
-    '/api/auth/logout',
-    '/api/auth/status',
+    '/api/auth',
     '/api/features',
     '/api/og',
     '/api/project-count',
+    '/api/v1/models',
+    '/admin',
     '/_next',
     '/favicon.ico',
   ];
@@ -36,27 +36,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for API key cookie (authentication)
-  const apiKey = request.cookies.get('pollinations_api_key')?.value;
-
-  // If no API key and trying to access protected route, redirect to login
-  if (!apiKey) {
-    const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Basic cookie format validation — reject obviously invalid values
-  // (Full validation happens in individual routes via getCurrentUser)
-  const isValidFormat = /^(sk_|pk_)[a-zA-Z0-9_-]{10,500}$/.test(apiKey);
-  if (!isValidFormat) {
-    const loginUrl = new URL('/login', request.url);
-    const response = NextResponse.redirect(loginUrl);
-    response.cookies.delete('pollinations_api_key');
-    return response;
-  }
-
-  // API key exists and has valid format, allow the request to continue
-  // Individual routes will validate the key and check authorization
+  // Protected routes: client-side auth (providers.tsx) checks localStorage
+  // and redirects to /login if no API key is found.
+  // API routes validate the X-Pollinations-Key header independently.
   return NextResponse.next();
 }
 
