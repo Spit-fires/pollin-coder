@@ -1,9 +1,9 @@
-import { PrismaClient } from "@prisma/client/edge";
+import { PrismaClient } from "@prisma/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
 
 // Edge-compatible Prisma singleton using HTTP transport.
-// @prisma/adapter-libsql v6.19+ accepts a config object and internally
-// creates the appropriate @libsql/client (HTTP in edge, native in Node.js).
+// Note: We import from @prisma/client (NOT /edge) because we're using a driver adapter.
+// The adapter automatically selects HTTP transport in edge runtime for compatibility.
 // Used by routes with `export const runtime = "edge"`.
 // Node.js routes should continue using lib/prisma.ts for native TCP performance.
 
