@@ -9,6 +9,8 @@
  * This implementation works well for single-instance or low-traffic deployments.
  */
 
+import { NextResponse } from "next/server";
+
 interface RateLimitEntry {
   timestamps: number[];
 }
@@ -91,7 +93,6 @@ export function checkRateLimit(
  * Create a rate limit response with proper headers.
  */
 export function rateLimitResponse(result: RateLimitResult, config: RateLimitConfig) {
-  const { NextResponse } = require("next/server");
   const retryAfter = Math.ceil((result.retryAfterMs || config.windowMs) / 1000);
   return NextResponse.json(
     { error: "Too many requests. Please try again later." },

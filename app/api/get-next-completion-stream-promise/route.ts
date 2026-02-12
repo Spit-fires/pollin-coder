@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { callPollinationsAPIStream } from "@/lib/pollinations";
-import { getPrisma } from "@/lib/prisma";
-import { getCurrentUser, extractApiKeyFromHeader } from "@/lib/auth";
+import { getPrismaEdge } from "@/lib/prisma-edge";
+import { getCurrentUserEdge, extractApiKeyFromHeader } from "@/lib/auth-edge";
 import { checkRateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
+
+export const runtime = "edge";
 
 // Rate limit: 20 completions per minute per IP (generous for normal use, blocks abuse)
 const COMPLETION_RATE_LIMIT = { maxRequests: 20, windowMs: 60_000 };
@@ -36,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     // Get authenticated user
-    const user = await getCurrentUser(apiKey);
+    const user = await getCurrentUserEdge(apiKey);
     
     if (!user) {
       return new Response(
@@ -90,8 +92,8 @@ export async function POST(req: Request) {
 
     const { messageId, model } = parseResult.data;
     
-    // Use shared Prisma singleton
-    const prisma = getPrisma();
+    // Use edge-compatible Prisma singleton (HTTP transport)
+    const prisma = getPrismaEdge();
 
     const message = await prisma.message.findUnique({
       where: { id: messageId },
@@ -167,6 +169,6 @@ export async function POST(req: Request) {
   }
 }
 
-// Vercel free plan: 60 seconds max
-// Use client-side retry logic for longer completions
-export const maxDuration = 60;
+// Edge runtime: streaming connections can stay open much longer than
+// the 60s serverless limit. CPU time is limited (~30s) but streaming
+// is IO-bound, so long completions complete without timeout.

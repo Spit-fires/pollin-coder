@@ -3,10 +3,6 @@
   "outputDirectory": ".next",
   "regions": ["iad1"],
   "functions": {
-    "app/api/get-next-completion-stream-promise/route.ts": {
-      "memory": 1024,
-      "maxDuration": 60
-    },
     "app/(main)/page.tsx": {
       "memory": 1024,
       "maxDuration": 60
