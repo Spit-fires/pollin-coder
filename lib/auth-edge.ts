@@ -4,7 +4,7 @@
  * Used by routes with `export const runtime = "edge"`.
  */
 
-import { getPrismaEdge } from "./prisma-edge";
+import { getUserByEmail } from "./turso-edge";
 
 // Simple in-memory cache for auth validation (30-second TTL)
 const authCache = new Map<string, { user: any; expiresAt: number }>();
@@ -114,10 +114,7 @@ export async function getCurrentUserEdge(apiKey?: string) {
       return null;
     }
 
-    const prisma = getPrismaEdge();
-    const user = await prisma.user.findUnique({
-      where: { email: profile.email },
-    });
+    const user = await getUserByEmail(profile.email);
 
     if (user) {
       setCachedAuth(resolvedApiKey, user);

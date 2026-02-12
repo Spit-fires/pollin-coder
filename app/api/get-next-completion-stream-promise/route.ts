@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { callPollinationsAPIStream } from "@/lib/pollinations";
-import { getPrismaEdge } from "@/lib/prisma-edge";
+import { getMessageWithChat, getMessagesForChat } from "@/lib/turso-edge";
 import { getCurrentUserEdge, extractApiKeyFromHeader } from "@/lib/auth-edge";
 import { checkRateLimit, rateLimitResponse, getClientIp } from "@/lib/rate-limit";
 
@@ -92,15 +92,8 @@ export async function POST(req: Request) {
 
     const { messageId, model } = parseResult.data;
     
-    // Use edge-compatible Prisma singleton (HTTP transport)
-    const prisma = getPrismaEdge();
-
-    const message = await prisma.message.findUnique({
-      where: { id: messageId },
-      include: {
-        chat: true,
-      },
-    });
+    // Use direct libSQL queries (no Prisma - smaller edge bundle)
+    const message = await getMessageWithChat(messageId);
 
     if (!message) {
       return new Response(
@@ -113,7 +106,8 @@ export async function POST(req: Request) {
     }
 
     // CRITICAL: Check ownership - prevent IDOR attack
-    if (message.chat.userId !== user.id) {
+    // Reject if chat has no owner or belongs to someone else
+    if (!message.chat.userId || message.chat.userId !== user.id) {
       return new Response(
         JSON.stringify({ error: "Access denied" }), 
         { 
@@ -123,10 +117,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const messagesRes = await prisma.message.findMany({
-      where: { chatId: message.chatId, position: { lte: message.position } },
-      orderBy: { position: "asc" },
-    });
+    const messagesRes = await getMessagesForChat(
+      message.chatId,
+      message.position
+    );
 
     let messages = z
       .array(
