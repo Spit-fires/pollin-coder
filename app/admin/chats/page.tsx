@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { adminFetch } from "@/lib/admin-client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -44,7 +44,7 @@ export default function AdminChatsPage() {
   });
   const { toast } = useToast();
 
-  const fetchChats = async (page = 1) => {
+  const fetchChats = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const response = await adminFetch(
@@ -70,11 +70,11 @@ export default function AdminChatsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchChats();
-  }, []);
+  }, [fetchChats]);
 
   const handleDelete = async (chatId: string) => {
     if (!confirm("Are you sure you want to delete this chat and all its messages?")) {

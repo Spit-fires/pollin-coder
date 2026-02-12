@@ -6,7 +6,7 @@ import {
   useSandpack,
 } from "@codesandbox/sandpack-react/unstyled";
 import { useState, useEffect } from "react";
-import { CheckIcon, CopyIcon, FileIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { extractAllCodeBlocks } from "@/lib/utils";
 
 interface SandpackComponentsProps {

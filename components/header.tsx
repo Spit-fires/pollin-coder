@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useContext, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthContext } from "@/app/(main)/providers";
@@ -46,9 +47,11 @@ export default function Header() {
             {/* User info */}
             <div className="flex items-center gap-3 text-sm text-gray-300">
               {authStatus.profile?.image && (
-                <img
+                <Image
                   src={authStatus.profile.image}
                   alt="Profile"
+                  width={32}
+                  height={32}
                   className="w-8 h-8 rounded-full border-2 border-purple-400"
                 />
               )}
