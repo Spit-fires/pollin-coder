@@ -19,6 +19,7 @@ import { XCircleIcon } from "@heroicons/react/20/solid";
 import { SUGGESTED_PROMPTS } from "@/lib/constants";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useModels, getDefaultModel, setDefaultModel } from "@/hooks/use-models";
+import { authFetch } from "@/lib/api-client";
 import { authFetchWithRetry } from "@/lib/streaming-retry";
 import { getApiKey } from "@/lib/secure-storage";
 
