@@ -289,7 +289,3 @@ export async function createMessage(
 
   return newMessage;
 }
-
-// Vercel free plan: 60 seconds max
-// createChat action is split into multiple shorter LLM calls to stay under limit
-export const maxDuration = 60;
