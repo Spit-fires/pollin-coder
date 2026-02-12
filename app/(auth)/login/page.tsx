@@ -13,12 +13,14 @@ export default function LoginPage() {
   useEffect(() => {
     async function fetchModels() {
       try {
-        const response = await fetch("/api/auth/model-scopes");
+        const response = await fetch("/api/v1/models");
         if (!response.ok) {
           throw new Error("Failed to fetch models");
         }
         const data = await response.json();
-        setModels(data.models);
+        // Extract model values as comma-separated string
+        const modelList = data.models?.map((m: { value: string }) => m.value).join(",");
+        setModels(modelList || "openai,openai-fast,openai-large,claude,mistral");
       } catch (error) {
         console.error("Error fetching models:", error);
         // Fallback to basic model list

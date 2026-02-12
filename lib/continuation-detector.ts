@@ -52,12 +52,16 @@ export function isResponseIncomplete(content: string): boolean {
     return true;
   }
 
-  // Check if content is very long (>7000 chars) and doesn't end with clear completion marker
-  if (trimmed.length > 7000) {
+  // Check if content is extremely long (>15000 chars) and doesn't end with clear completion marker
+  // Raised from 7000 to reduce false positives — generated code often lacks typical prose endings
+  if (trimmed.length > 15000) {
     const completionMarkers = [
       /\n```\s*$/,          // Ends with closed code block
       /\n\n(?:Hope|I hope|This|That|Let me know|Feel free|Happy to help)/i, // Common closing phrases
       /[.!?]\s*$/,          // Ends with sentence punctuation
+      /export\s+default\s+/,// Has a default export (code is likely complete)
+      /\);?\s*$/,           // Ends with closing paren/semicolon (common code ending)
+      /\}\s*$/,             // Ends with closing brace
     ];
     
     const hasCompletionMarker = completionMarkers.some(pattern => pattern.test(trimmed));

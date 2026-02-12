@@ -127,7 +127,7 @@ export default function ChatBox({
                   model: model, // Use the selected model
                 }),
                 retryOptions: {
-                  maxRetries: 3,
+                  maxRetries: 2,
                   onPartialContent: (content) => {
                     console.log(`Partial completion received: ${content.length} chars`);
                   },

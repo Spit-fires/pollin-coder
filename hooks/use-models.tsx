@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode, useMemo } from "react";
 import {
   type Model,
   FALLBACK_MODELS,
@@ -36,7 +36,19 @@ export function setDefaultModel(model: string): void {
   }
 }
 
-export function useModels() {
+// Shared context so all components share one fetch
+interface ModelsContextValue {
+  models: Model[];
+  isLoading: boolean;
+}
+
+const ModelsContext = createContext<ModelsContextValue | null>(null);
+
+/**
+ * Provider that fetches models ONCE and shares the result with all consumers.
+ * Place this inside the main Providers component.
+ */
+export function ModelsProvider({ children }: { children: ReactNode }) {
   const [models, setModels] = useState<Model[]>(FALLBACK_MODELS);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -76,5 +88,24 @@ export function useModels() {
     };
   }, []);
 
-  return { models, isLoading };
+  const value = useMemo(() => ({ models, isLoading }), [models, isLoading]);
+
+  return (
+    <ModelsContext value={value}>
+      {children}
+    </ModelsContext>
+  );
+}
+
+/**
+ * Hook to consume the shared models data.
+ * Must be used within a ModelsProvider.
+ */
+export function useModels(): ModelsContextValue {
+  const ctx = useContext(ModelsContext);
+  if (ctx) return ctx;
+
+  // Fallback for components outside the provider (e.g., login page)
+  // — returns static fallback models without fetching
+  return { models: FALLBACK_MODELS, isLoading: false };
 }

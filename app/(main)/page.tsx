@@ -52,29 +52,38 @@ export default function Home() {
     // Trigger animations after component mounts
     setAnimationLoaded(true);
 
-    // Check if uploads are enabled
-    fetch('/api/features', { signal })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!signal.aborted) setUploadsEnabled(data.uploadsEnabled);
-      })
-      .catch((err) => {
-        if (!signal.aborted) console.error('Failed to fetch feature flags:', err);
-      });
+    // Check if uploads are enabled (with sessionStorage cache)
+    const cachedFlags = sessionStorage.getItem('feature_flags');
+    const cachedFlagsTs = sessionStorage.getItem('feature_flags_ts');
+    const FEATURE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+    if (cachedFlags && cachedFlagsTs && (Date.now() - Number(cachedFlagsTs)) < FEATURE_CACHE_TTL) {
+      try {
+        const data = JSON.parse(cachedFlags);
+        setUploadsEnabled(data.uploadsEnabled);
+      } catch { /* ignore parse errors, fetch fresh */ }
+    } else {
+      fetch('/api/features', { signal })
+        .then((res) => res.json())
+        .then((data) => {
+          if (!signal.aborted) {
+            setUploadsEnabled(data.uploadsEnabled);
+            try {
+              sessionStorage.setItem('feature_flags', JSON.stringify(data));
+              sessionStorage.setItem('feature_flags_ts', String(Date.now()));
+            } catch { /* sessionStorage may be unavailable */ }
+          }
+        })
+        .catch((err) => {
+          if (!signal.aborted) console.error('Failed to fetch feature flags:', err);
+        });
+    }
 
     // Fetch project count when component mounts
     const fetchProjectCount = async () => {
       setIsCountLoading(true);
       try {
-        const timestamp = Date.now();
-        const response = await fetch(`/api/project-count?t=${timestamp}`, {
-          signal,
-          method: 'GET',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
+        const response = await fetch('/api/project-count', { signal });
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -85,18 +94,11 @@ export default function Home() {
       } catch (err) {
         if (signal.aborted) return;
         console.error('Failed to fetch project count:', err);
-        // Retry once after a short delay
-        setTimeout(async () => {
+        // Retry once after a short delay (respects abort signal)
+        const retryTimeout = setTimeout(async () => {
+          if (signal.aborted) return;
           try {
-            const timestamp = Date.now();
-            const response = await fetch(`/api/project-count?t=${timestamp}`, {
-              method: 'GET',
-              headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-              }
-            });
-            
+            const response = await fetch('/api/project-count', { signal });
             if (response.ok) {
               const data = await response.json();
               if (!signal.aborted) setProjectCount(data.count);
@@ -107,6 +109,7 @@ export default function Home() {
             if (!signal.aborted) setIsCountLoading(false);
           }
         }, 1000);
+        signal.addEventListener('abort', () => clearTimeout(retryTimeout));
         return;
       } finally {
         if (!signal.aborted) setIsCountLoading(false);
@@ -204,14 +207,7 @@ export default function Home() {
                 <button
                   onClick={() => {
                     setIsCountLoading(true);
-                    const timestamp = Date.now();
-                    fetch(`/api/project-count?t=${timestamp}`, {
-                      method: 'GET',
-                      headers: {
-                        'Cache-Control': 'no-cache',
-                        'Pragma': 'no-cache'
-                      }
-                    })
+                    fetch('/api/project-count')
                     .then(res => res.json())
                     .then(data => {
                       setProjectCount(data.count);
@@ -290,7 +286,7 @@ export default function Home() {
                     method: "POST",
                     body: JSON.stringify({ messageId: lastMessageId, model }),
                     retryOptions: {
-                      maxRetries: 3,
+                      maxRetries: 2,
                       onPartialContent: (content) => {
                         console.log(`Partial completion received: ${content.length} chars`);
                       },

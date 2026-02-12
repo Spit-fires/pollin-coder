@@ -4,6 +4,7 @@ import { createContext, ReactNode, useState, useEffect, useMemo } from "react";
 import { getApiKey } from "@/lib/secure-storage";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import { ModelsProvider } from "@/hooks/use-models";
 
 // Schema for validating profile data from localStorage
 const profileSchema = z.object({
@@ -88,9 +89,11 @@ export default function Providers({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext value={authState}>
-      <Context value={streamContextValue}>
-        {children}
-      </Context>
+      <ModelsProvider>
+        <Context value={streamContextValue}>
+          {children}
+        </Context>
+      </ModelsProvider>
     </AuthContext>
   );
 }

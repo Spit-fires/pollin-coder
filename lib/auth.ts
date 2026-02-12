@@ -6,6 +6,11 @@ const authCache = new Map<string, { user: any; expiresAt: number }>();
 const AUTH_CACHE_TTL_MS = 30_000;
 const AUTH_CACHE_MAX_SIZE = 500;
 
+// Negative cache for failed auth lookups (10-second TTL)
+// Prevents hammering upstream with known-bad/expired keys
+const authNegativeCache = new Map<string, number>();
+const AUTH_NEGATIVE_CACHE_TTL_MS = 10_000;
+
 function getCachedAuth(apiKey: string) {
   const cached = authCache.get(apiKey);
   if (cached && cached.expiresAt > Date.now()) {
@@ -58,6 +63,13 @@ export async function getCurrentUser(apiKey?: string) {
       return cachedUser;
     }
 
+    // Check negative cache — avoid hammering upstream with known-bad keys
+    const negativeExpiry = authNegativeCache.get(resolvedApiKey);
+    if (negativeExpiry && negativeExpiry > Date.now()) {
+      return null;
+    }
+    authNegativeCache.delete(resolvedApiKey);
+
     // Validate the API key by calling the upstream API (with timeout)
     const controller1 = new AbortController();
     const timeout1 = setTimeout(() => controller1.abort(), 10_000);
@@ -73,11 +85,13 @@ export async function getCurrentUser(apiKey?: string) {
     clearTimeout(timeout1);
 
     if (!keyResponse.ok) {
+      authNegativeCache.set(resolvedApiKey, Date.now() + AUTH_NEGATIVE_CACHE_TTL_MS);
       return null;
     }
 
     const keyInfo = await keyResponse.json();
     if (!keyInfo.valid) {
+      authNegativeCache.set(resolvedApiKey, Date.now() + AUTH_NEGATIVE_CACHE_TTL_MS);
       return null;
     }
 

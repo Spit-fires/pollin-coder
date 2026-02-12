@@ -109,16 +109,20 @@ export default function PageClient({ chat }: { chat: Chat }) {
   const [activeTab, setActiveTab] = useState<"code" | "preview">("preview");
   const router = useRouter();
   const isHandlingStreamRef = useRef(false);
+  const ownershipVerifiedRef = useRef(false);
   const [activeMessage, setActiveMessage] = useState(
     chat.messages.filter((m) => m.role === "assistant").at(-1),
   );
 
   // Verify chat ownership on mount to prevent read-only IDOR
   useEffect(() => {
+    if (ownershipVerifiedRef.current) return;
     authFetch(`/api/chats/${chat.id}`)
       .then((res) => {
         if (!res.ok) {
           router.push('/');
+        } else {
+          ownershipVerifiedRef.current = true;
         }
       })
       .catch(() => {
@@ -183,7 +187,6 @@ export default function PageClient({ chat }: { chat: Chat }) {
               isHandlingStreamRef.current = false;
               setStreamText("");
               setStreamPromise(undefined);
-              router.refresh();
               return;
             }
             
@@ -194,7 +197,6 @@ export default function PageClient({ chat }: { chat: Chat }) {
               isHandlingStreamRef.current = false;
               setStreamText("");
               setStreamPromise(undefined);
-              router.refresh();
               return;
             }
             
@@ -231,7 +233,7 @@ export default function PageClient({ chat }: { chat: Chat }) {
                         model: chat.model,
                       }),
                       retryOptions: {
-                        maxRetries: 3,
+                        maxRetries: 2,
                         onPartialContent: (content) => {
                           console.log(`Continuation partial: ${content.length} chars`);
                         },
@@ -260,7 +262,7 @@ export default function PageClient({ chat }: { chat: Chat }) {
                   setStreamText("");
                   setStreamPromise(undefined);
                   setActiveMessage(message);
-                  router.refresh();
+                  // No router.refresh() needed — message already saved, state is updated
                 }
               } else {
                 // Response is complete, no continuation needed
@@ -275,7 +277,7 @@ export default function PageClient({ chat }: { chat: Chat }) {
               isHandlingStreamRef.current = false;
               setStreamText("");
               setStreamPromise(undefined);
-              router.refresh();
+              // No router.refresh() needed — nothing was saved
             }
           });
         });
@@ -382,7 +384,7 @@ export default function PageClient({ chat }: { chat: Chat }) {
                         model: chat.model,
                       }),
                       retryOptions: {
-                        maxRetries: 3,
+                        maxRetries: 2,
                         onPartialContent: (content) => {
                           console.log(`Partial completion received: ${content.length} chars`);
                         },

@@ -27,7 +27,7 @@ export async function streamingFetchWithRetry(
   options: StreamRetryOptions = {}
 ): Promise<ReadableStream<Uint8Array>> {
   const {
-    maxRetries = 3,
+    maxRetries = 2,
     baseDelay = 1000,
     maxDelay = 10000,
     onPartialContent,
