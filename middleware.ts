@@ -49,14 +49,26 @@ export function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Admin API routes require X-Admin-Token
+    // Admin API routes require X-Admin-Token (except auth endpoints)
     if (pathname.startsWith('/api/admin/')) {
-      const hasAdminToken = request.headers.has('X-Admin-Token');
-      if (!hasAdminToken) {
-        return NextResponse.json(
-          { error: 'Admin authentication required' },
-          { status: 401 }
-        );
+      // Public admin auth endpoints (register, login)
+      const publicAdminAuthRoutes = [
+        '/api/admin/auth/register',
+        '/api/admin/auth/login',
+      ];
+      
+      const isPublicAdminAuth = publicAdminAuthRoutes.some(route => 
+        pathname.startsWith(route)
+      );
+      
+      if (!isPublicAdminAuth) {
+        const hasAdminToken = request.headers.has('X-Admin-Token');
+        if (!hasAdminToken) {
+          return NextResponse.json(
+            { error: 'Admin authentication required' },
+            { status: 401 }
+          );
+        }
       }
       return NextResponse.next();
     }
