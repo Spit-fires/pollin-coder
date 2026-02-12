@@ -7,6 +7,10 @@
       "memory": 1024,
       "maxDuration": 60
     },
+    "app/(main)/page.tsx": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
     "app/api/project-count/route.ts": {
       "memory": 128,
       "maxDuration": 10

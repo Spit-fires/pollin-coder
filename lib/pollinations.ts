@@ -87,10 +87,11 @@ export async function callPollinationsAPIStream(
 
 /**
  * Make a non-streaming request to Pollinations AI API
+ * Uses shorter timeout (20s) to fit multiple calls within 60s server action limit
  */
 export async function callPollinationsAPISync(
   apiKey: string,
   body: any
 ): Promise<Response> {
-  return callPollinationsAPI(apiKey, body, { stream: false });
+  return callPollinationsAPI(apiKey, body, { stream: false, timeout: 20_000 });
 }

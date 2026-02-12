@@ -256,10 +256,13 @@ export async function createMessage(
   const user = await requireAuth(apiKey);
   
   const prisma = getPrisma();
+  
+  // First verify chat exists and user owns it
   const chat = await prisma.chat.findUnique({
     where: { id: chatId },
-    include: { messages: true },
+    select: { id: true, userId: true }, // Only select needed fields
   });
+  
   if (!chat) notFound();
 
   // Check ownership
@@ -267,9 +270,13 @@ export async function createMessage(
     throw new Error("Access denied");
   }
 
-  const maxPosition = chat.messages.length > 0
-    ? Math.max(...chat.messages.map((m) => m.position))
-    : -1;
+  // Get max position efficiently with aggregation instead of loading all messages
+  const maxPositionResult = await prisma.message.aggregate({
+    where: { chatId },
+    _max: { position: true },
+  });
+  
+  const maxPosition = maxPositionResult._max.position ?? -1;
 
   const newMessage = await prisma.message.create({
     data: {
@@ -282,3 +289,7 @@ export async function createMessage(
 
   return newMessage;
 }
+
+// Vercel free plan: 60 seconds max
+// createChat action is split into multiple shorter LLM calls to stay under limit
+export const maxDuration = 60;

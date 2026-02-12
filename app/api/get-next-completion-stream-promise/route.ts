@@ -144,7 +144,7 @@ export async function POST(req: Request) {
       messages: messages.map((m: any) => ({ role: m.role, content: m.content })),
       stream: true,
       temperature: 0.2,
-      max_tokens: 9000,
+      max_tokens: 16000, // Increased for longer responses (within free tier limits)
       referrer: "pollin-coder"
     });
 
@@ -167,4 +167,6 @@ export async function POST(req: Request) {
   }
 }
 
-export const maxDuration = 45;
+// Vercel free plan: 60 seconds max
+// Use client-side retry logic for longer completions
+export const maxDuration = 60;

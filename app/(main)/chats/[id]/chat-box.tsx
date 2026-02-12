@@ -11,7 +11,7 @@ import { useModels, setDefaultModel } from "@/hooks/use-models";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import UploadIcon from "@/components/icons/upload-icon";
 import { XCircleIcon } from "@heroicons/react/20/solid";
-import { authFetch } from "@/lib/api-client";
+import { authFetchWithRetry } from "@/lib/streaming-retry";
 import { getApiKey } from "@/lib/secure-storage";
 
 export default function ChatBox({
@@ -117,7 +117,7 @@ export default function ChatBox({
             
             try {
               const message = await createMessage(apiKey, chat.id, messageText, "user");
-            const streamPromise = authFetch(
+            const streamPromise = authFetchWithRetry(
               "/api/get-next-completion-stream-promise",
               {
                 method: "POST",
@@ -125,6 +125,12 @@ export default function ChatBox({
                   messageId: message.id,
                   model: model, // Use the selected model
                 }),
+                retryOptions: {
+                  maxRetries: 3,
+                  onPartialContent: (content) => {
+                    console.log(`Partial completion received: ${content.length} chars`);
+                  },
+                },
               },
             ).then(async (res) => {
               // Check if response is OK before treating as stream
@@ -136,6 +142,10 @@ export default function ChatBox({
                 throw new Error("No body on response");
               }
               return res.body;
+            }).catch((error) => {
+              // Log and re-throw to be handled by the stream consumer
+              console.error('Stream promise rejected:', error);
+              throw error;
             });
 
             onNewStreamPromise(streamPromise);

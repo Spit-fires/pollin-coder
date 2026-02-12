@@ -3,6 +3,7 @@
 import { createMessage } from "@/app/(main)/actions";
 import LogoSmall from "@/components/icons/logo-small";
 import { splitByFirstCodeFence } from "@/lib/utils";
+import { isResponseIncomplete, getContinuationPrompt } from "@/lib/continuation-detector";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, use, useEffect, useRef, useState } from "react";
@@ -14,6 +15,7 @@ import type { Chat } from "./page";
 import { Context } from "../../providers";
 import ThreeBackgroundScene from "@/components/ThreeBackgroundScene";
 import { authFetch } from "@/lib/api-client";
+import { authFetchWithRetry } from "@/lib/streaming-retry";
 import { getApiKey } from "@/lib/secure-storage";
 
 // Helper for parsing SSE streams
@@ -68,6 +70,10 @@ class ChatCompletionStream {
       } catch (error) {
         if (!cancelled) {
           console.error("Error reading stream:", error);
+          // Invoke finalContent handlers even on error to save partial content
+          if (accumulatedContent) {
+            finalContentHandlers.forEach(handler => handler(accumulatedContent));
+          }
         }
       }
     };
@@ -129,7 +135,17 @@ export default function PageClient({ chat }: { chat: Chat }) {
       isHandlingStreamRef.current = true;
       context.setStreamPromise(undefined);
 
-      const stream = await streamPromise;
+      let stream: ReadableStream;
+      try {
+        stream = await streamPromise;
+      } catch (error) {
+        console.error("Error getting stream:", error);
+        isHandlingStreamRef.current = false;
+        setStreamText("");
+        setStreamPromise(undefined);
+        alert(error instanceof Error ? error.message : 'Failed to get completion stream');
+        return;
+      }
       let didPushToCode = false;
       let didPushToPreview = false;
 
@@ -183,6 +199,7 @@ export default function PageClient({ chat }: { chat: Chat }) {
             }
             
             try {
+              // Save the assistant message
               const message = await createMessage(
                 apiKey,
                 chat.id,
@@ -190,13 +207,69 @@ export default function PageClient({ chat }: { chat: Chat }) {
                 "assistant",
               );
 
-            startTransition(() => {
-              isHandlingStreamRef.current = false;
-              setStreamText("");
-              setStreamPromise(undefined);
-              setActiveMessage(message);
-              router.refresh();
-            });
+              // Check if response is incomplete and needs continuation
+              if (isResponseIncomplete(trimmedText)) {
+                console.log("Response appears incomplete, requesting continuation...");
+                
+                try {
+                  // Create continuation request
+                  const continuationPrompt = getContinuationPrompt(trimmedText);
+                  const continueMessage = await createMessage(
+                    apiKey,
+                    chat.id,
+                    continuationPrompt,
+                    "user",
+                  );
+
+                  // Start a new stream for continuation
+                  const continueStreamPromise = authFetchWithRetry(
+                    "/api/get-next-completion-stream-promise",
+                    {
+                      method: "POST",
+                      body: JSON.stringify({
+                        messageId: continueMessage.id,
+                        model: chat.model,
+                      }),
+                      retryOptions: {
+                        maxRetries: 3,
+                        onPartialContent: (content) => {
+                          console.log(`Continuation partial: ${content.length} chars`);
+                        },
+                      },
+                    },
+                  ).then((res) => {
+                    if (!res.body) {
+                      throw new Error("No body on response");
+                    }
+                    return res.body;
+                  }).catch((error) => {
+                    console.error('Continuation stream rejected:', error);
+                    throw error;
+                  });
+
+                  // Update state to show continuation is happening
+                  setActiveMessage(message);
+                  setStreamPromise(continueStreamPromise);
+                  context.setStreamPromise(continueStreamPromise);
+                  isHandlingStreamRef.current = false;
+                  router.refresh();
+                } catch (continueError) {
+                  console.error('Failed to request continuation:', continueError);
+                  // Continue normally even if continuation fails
+                  isHandlingStreamRef.current = false;
+                  setStreamText("");
+                  setStreamPromise(undefined);
+                  setActiveMessage(message);
+                  router.refresh();
+                }
+              } else {
+                // Response is complete, no continuation needed
+                isHandlingStreamRef.current = false;
+                setStreamText("");
+                setStreamPromise(undefined);
+                setActiveMessage(message);
+                router.refresh();
+              }
             } catch (error) {
               console.error('Error saving assistant message:', error);
               isHandlingStreamRef.current = false;
@@ -300,7 +373,7 @@ export default function PageClient({ chat }: { chat: Chat }) {
                       "user",
                     );
 
-                  const streamPromise = authFetch(
+                  const streamPromise = authFetchWithRetry(
                     "/api/get-next-completion-stream-promise",
                     {
                       method: "POST",
@@ -308,12 +381,22 @@ export default function PageClient({ chat }: { chat: Chat }) {
                         messageId: message.id,
                         model: chat.model,
                       }),
+                      retryOptions: {
+                        maxRetries: 3,
+                        onPartialContent: (content) => {
+                          console.log(`Partial completion received: ${content.length} chars`);
+                        },
+                      },
                     },
                   ).then((res) => {
                     if (!res.body) {
                       throw new Error("No body on response");
                     }
                     return res.body;
+                  }).catch((error) => {
+                    // Log and re-throw to be handled by the stream consumer
+                    console.error('Stream promise rejected:', error);
+                    throw error;
                   });
                   setStreamPromise(streamPromise);
                   router.refresh();
