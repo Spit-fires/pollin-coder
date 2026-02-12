@@ -36,7 +36,7 @@ function isAllowedScreenshotUrl(url: string): boolean {
 }
 
 const createChatSchema = z.object({
-  prompt: z.string().min(1).max(10000),
+  prompt: z.string().min(1).max(50000),
   model: z.string().min(1).max(100),
   quality: z.enum(["high", "low"]),
   screenshotUrl: z.string().url().refine(
@@ -47,7 +47,7 @@ const createChatSchema = z.object({
 
 const createMessageSchema = z.object({
   chatId: z.string().min(1, "Chat ID is required"),
-  text: z.string().min(1, "Message text cannot be empty").max(10000, "Message text is too long (max 10,000 characters)"),
+  text: z.string().min(1, "Message text cannot be empty").max(50000, "Message text is too long (max 50,000 characters)"),
   role: z.enum(["assistant", "user"]),
 });
 
