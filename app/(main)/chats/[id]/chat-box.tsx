@@ -11,6 +11,7 @@ import { useModels, setDefaultModel } from "@/hooks/use-models";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import UploadIcon from "@/components/icons/upload-icon";
 import { XCircleIcon } from "@heroicons/react/20/solid";
+import { authFetch } from "@/lib/api-client";
 import { authFetchWithRetry } from "@/lib/streaming-retry";
 import { getApiKey } from "@/lib/secure-storage";
 
